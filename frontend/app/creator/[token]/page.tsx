@@ -10,7 +10,7 @@ import Link from 'next/link';
 import { EthosStats, CreatorEthosStats } from '@/components/EthosStats';
 import { EthosBadge, EthosVerifiedBadge, getBandFromScore, EthosBand } from '@/components/EthosBadge';
 import { EthosReviewModal } from '@/components/EthosReviewModal';
-import { TokenPicker } from '@/components/TokenPicker';
+import { TokenAddressInput } from '@/components/TokenAddressInput';
 
 interface Supporter {
     address: string;
@@ -193,12 +193,12 @@ export default function CreatorPage() {
                 </div>
                 <div className="card" style={{ padding: '24px' }}>
                     <h3 style={{ marginBottom: '16px', color: 'var(--text-primary)' }}>
-                        🔍 Search Creator Coins
+                        � Paste Token Address
                     </h3>
                     <p style={{ marginBottom: '20px', color: 'var(--text-secondary)', fontSize: '14px' }}>
-                        Search by Farcaster username or Contract Address to find creator coins on Base.
+                        Copy the contract address from the creator's Base App profile.
                     </p>
-                    <TokenPicker />
+                    <TokenAddressInput />
                 </div>
             </div>
         );
