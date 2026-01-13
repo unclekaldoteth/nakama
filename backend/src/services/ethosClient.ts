@@ -6,9 +6,12 @@
 import { Pool } from 'pg';
 import crypto from 'crypto';
 
-const ETHOS_API_BASE = 'https://api.ethos.network';
+const ETHOS_API_ROOT = 'https://api.ethos.network';
+const ETHOS_API_V2 = `${ETHOS_API_ROOT}/api/v2`;
+const ETHOS_API_V1 = `${ETHOS_API_ROOT}/api/v1`;
 const ETHOS_CLIENT_HEADER = 'nakama@1.0.0';
 const CACHE_TTL_HOURS = 6;
+const DEFAULT_SCORE = 1200;
 
 // Credibility bands based on Ethos score
 export const ETHOS_BANDS = {
@@ -62,6 +65,28 @@ export interface EthosWriteResult {
     receiptId?: string;
     error?: string;
     deepLink?: string;
+}
+
+function normalizeScore(value: unknown): number {
+    const num = typeof value === 'number' ? value : Number(value);
+    return Number.isFinite(num) && num > 0 ? num : DEFAULT_SCORE;
+}
+
+function extractBulkUsers(payload: unknown): Array<{ userkey: string; score?: number }> {
+    if (!payload || typeof payload !== 'object') return [];
+    const typed = payload as Record<string, unknown>;
+    const candidates = [
+        typed.users,
+        typed.results,
+        typed.data,
+        typed.profiles,
+    ];
+    for (const candidate of candidates) {
+        if (Array.isArray(candidate)) {
+            return candidate as Array<{ userkey: string; score?: number }>;
+        }
+    }
+    return [];
 }
 
 /**
@@ -128,9 +153,9 @@ export class EthosClient {
             }
         }
 
-        // Fetch from Ethos API
+        // Fetch from Ethos API v2
         try {
-            const response = await fetch(`${ETHOS_API_BASE}/api/v1/users/${encodeURIComponent(userkey)}/stats`, {
+            const response = await fetch(`${ETHOS_API_V2}/score/${encodeURIComponent(userkey)}`, {
                 method: 'GET',
                 headers: this.getHeaders(),
             });
@@ -141,7 +166,7 @@ export class EthosClient {
             }
 
             const data = await response.json() as EthosUserStatsResponse;
-            const score = data.score || 1200;
+            const score = normalizeScore(data.score);
             const band = getBandFromScore(score);
 
             const profile: EthosProfile = {
@@ -212,7 +237,8 @@ export class EthosClient {
         for (let i = 0; i < toFetch.length; i += batchSize) {
             const batch = toFetch.slice(i, i + batchSize);
             try {
-                const response = await fetch(`${ETHOS_API_BASE}/api/v1/users/bulk`, {
+                // v2 uses users/lookup/bulk endpoint
+                const response = await fetch(`${ETHOS_API_V2}/users/lookup/bulk`, {
                     method: 'POST',
                     headers: this.getHeaders(),
                     body: JSON.stringify({ userkeys: batch }),
@@ -220,8 +246,9 @@ export class EthosClient {
 
                 if (response.ok) {
                     const data = await response.json() as EthosBulkUserResponse;
-                    for (const user of data.users || []) {
-                        const score = user.score || 1200;
+                    const users = extractBulkUsers(data);
+                    for (const user of users) {
+                        const score = normalizeScore(user.score);
                         const profile: EthosProfile = {
                             userkey: user.userkey,
                             score,
@@ -244,7 +271,7 @@ export class EthosClient {
             if (!results.has(userkey)) {
                 results.set(userkey, {
                     userkey,
-                    score: 1200,
+                    score: DEFAULT_SCORE,
                     band: 'Neutral',
                     reviewCount: 0,
                     vouchCount: 0,
@@ -332,7 +359,7 @@ export class EthosClient {
         // Try direct API call if we have auth token
         if (authToken) {
             try {
-                const response = await fetch(`${ETHOS_API_BASE}/api/v1/reviews/create`, {
+                const response = await fetch(`${ETHOS_API_V1}/reviews/create`, {
                     method: 'POST',
                     headers: this.getHeaders(authToken),
                     body: JSON.stringify({

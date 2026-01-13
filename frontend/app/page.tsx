@@ -30,7 +30,9 @@ export default function HomePage() {
               />
             )}
             <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
-              @{user.username}
+              {user.username
+                ? `@${user.username}`
+                : user.displayName || `FID ${user.fid}`}
             </span>
           </div>
         )}

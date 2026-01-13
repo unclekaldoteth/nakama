@@ -13,6 +13,9 @@ The core mechanic involves supporters buying creator coins, staking them to demo
 - **Soulbound Badges**: Non-transferable NFTs with on-chain SVG metadata as proof of conviction
 - **Gated Content**: Creators can restrict content access based on supporter tier
 - **Leaderboards**: Track top supporters by conviction score (sqrt of staked amount)
+- **Ethos Network Integration**: Credibility scores, on-chain reviews, and reputation-weighted supporter metrics
+- **Creator Coin Discovery**: Search and select creator coins via Clanker API integration
+- **Premium Dark UI**: Modern glassmorphism design with smooth animations
 
 ## Project Structure
 
@@ -158,14 +161,22 @@ BADGE_ADDRESS=0x810BFa0A3aEa3aF7187a853A75f9827bD213f5b4
 ## API Endpoints
 
 ### Creator Routes
-- `GET /api/creator/:token/supporters` - Get supporters list
-- `GET /api/creator/:token/stats` - Get creator stats
+- `GET /api/creator/:token/supporters` - Get supporters list with Ethos scores
+- `GET /api/creator/:token/stats` - Get creator stats including credibility metrics
 - `GET /api/creator/:token/allowlist` - Get tier-based allowlist
 - `POST /api/creator/:token/gated` - Create gated content (requires auth)
 
 ### User Routes
 - `GET /api/me/positions` - Get user's staked positions
 - `GET /api/me/badges` - Get user's badges
+
+### Ethos Routes
+- `GET /api/ethos/score/:userKey` - Get Ethos credibility score for a user
+- `GET /api/ethos/stats/:tokenAddress` - Get aggregated Ethos stats for a creator
+
+### Token Routes
+- `GET /api/tokens/search?q=:query` - Search creator coins via Clanker API
+- `GET /api/tokens/trending` - Get trending creator coins
 
 ### Gated Content
 - `GET /api/gated/:contentId` - Access gated content (requires auth)
@@ -215,6 +226,14 @@ npm test
 ## License
 
 MIT
+
+## Recent Updates
+
+### v1.1.0 - Ethos Integration & UI Revamp
+- **Ethos Network**: Integrated credibility scores, on-chain reviews via EthosReview contract
+- **Creator Coin Discovery**: Added TokenPicker component with Clanker API search
+- **Premium UI**: Complete visual overhaul with glassmorphism dark theme
+- **Allowlist Export**: Filter supporters by Ethos band and export as CSV
 
 ## Links
 

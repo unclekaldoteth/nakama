@@ -3,7 +3,7 @@
  * Calculates weighted conviction points and credibility metrics for Nakama
  */
 
-import { EthosProfile, getBandWeight, EthosBand } from './ethosClient';
+import { EthosProfile, getBandWeight, EthosBand, buildUserkey } from './ethosClient';
 
 // Lock duration multipliers for conviction points
 const LOCK_MULTIPLIERS: Record<string, number> = {
@@ -166,7 +166,8 @@ export function calculateCreatorStats(
         totalStaked += amount;
 
         // Get Ethos profile
-        const ethosProfile = ethosProfiles.get(pos.userAddress.toLowerCase()) || {
+        const userkey = buildUserkey(undefined, pos.userAddress) || pos.userAddress.toLowerCase();
+        const ethosProfile = ethosProfiles.get(userkey) || {
             score: 1200,
             band: 'Neutral' as EthosBand,
         };
@@ -239,7 +240,8 @@ export function buildSupporterList(
 
     return positions.map(pos => {
         const amount = BigInt(pos.amount);
-        const ethosProfile = ethosProfiles.get(pos.userAddress.toLowerCase()) || {
+        const userkey = buildUserkey(undefined, pos.userAddress) || pos.userAddress.toLowerCase();
+        const ethosProfile = ethosProfiles.get(userkey) || {
             score: 1200,
             band: 'Neutral' as EthosBand,
             fid: undefined,

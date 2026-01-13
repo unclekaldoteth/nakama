@@ -31,15 +31,15 @@ interface EthosStatsProps {
 export function EthosStats({ stats, loading }: EthosStatsProps) {
     if (loading) {
         return (
-            <div className="ethos-stats-loading" style={loadingStyles}>
-                <div style={pulseStyles}>Loading credibility stats...</div>
+            <div className="section" style={{ display: 'flex', justifyContent: 'center', padding: '40px', background: 'rgba(255,255,255,0.02)', borderRadius: '16px' }}>
+                <div style={{ color: 'var(--text-secondary)', animation: 'pulse 2s infinite' }}>Loading credibility stats...</div>
             </div>
         );
     }
 
     if (!stats) {
         return (
-            <div className="ethos-stats-empty" style={emptyStyles}>
+            <div className="section" style={{ display: 'flex', justifyContent: 'center', padding: '40px', background: 'rgba(255,255,255,0.02)', borderRadius: '16px', color: 'var(--text-muted)' }}>
                 <p>No supporters yet. Be the first to show your support!</p>
             </div>
         );
@@ -48,9 +48,9 @@ export function EthosStats({ stats, loading }: EthosStatsProps) {
     const indexBand = getBandFromScore(stats.supportCredibilityIndex);
 
     return (
-        <div className="ethos-stats" style={containerStyles}>
+        <div className="section">
             {/* Primary Ethos-first metrics */}
-            <div style={primaryGridStyles}>
+            <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
                 <StatCard
                     label="Known+ Supporters"
                     value={stats.knownPlusSupporters}
@@ -71,20 +71,35 @@ export function EthosStats({ stats, loading }: EthosStatsProps) {
             </div>
 
             {/* Secondary metrics */}
-            <div style={secondaryGridStyles}>
+            <div style={{
+                display: 'flex',
+                justifyContent: 'center',
+                gap: '20px',
+                paddingTop: '16px',
+                marginTop: '8px',
+                borderTop: '1px solid var(--surface-border)'
+            }}>
                 <MiniStat label="Total Staked" value={formatTokenAmount(stats.totalStaked)} />
                 <MiniStat label="Supporters" value={stats.totalSupporters} />
                 <MiniStat label="Conviction Pts" value={formatNumber(stats.totalConvictionPoints)} />
             </div>
 
             {/* Band distribution */}
-            <div style={distributionStyles}>
-                <span style={{ fontSize: '12px', color: '#6b7280', marginRight: '8px' }}>Distribution:</span>
+            <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '8px',
+                marginTop: '16px',
+                paddingTop: '16px',
+                borderTop: '1px solid var(--surface-border)'
+            }}>
+                <span style={{ fontSize: '12px', color: 'var(--text-secondary)', marginRight: '8px' }}>Distribution:</span>
                 {Object.entries(stats.bandDistribution).map(([band, count]) => (
                     count > 0 && (
-                        <span key={band} style={bandCountStyles}>
+                        <span key={band} style={{ display: 'inline-flex', alignItems: 'center' }}>
                             <EthosBadge score={getMinScoreForBand(band as EthosBand)} band={band as EthosBand} showScore={false} size="sm" />
-                            <span style={{ marginLeft: '3px', fontSize: '11px' }}>×{count}</span>
+                            <span style={{ marginLeft: '4px', fontSize: '11px', color: 'var(--text-secondary)' }}>×{count}</span>
                         </span>
                     )
                 ))}
@@ -103,16 +118,20 @@ interface StatCardProps {
 
 function StatCard({ label, value, icon, highlight, badge }: StatCardProps) {
     return (
-        <div style={{
-            ...cardStyles,
-            ...(highlight ? highlightCardStyles : {}),
-        }}>
-            {icon && <span style={{ fontSize: '24px', marginBottom: '4px' }}>{icon}</span>}
-            <div style={cardValueStyles}>
+        <div
+            className="stat-card"
+            style={highlight ? {
+                background: 'rgba(6, 182, 212, 0.05)',
+                borderColor: 'var(--accent)',
+                boxShadow: '0 0 10px rgba(6, 182, 212, 0.1)'
+            } : {}}
+        >
+            {icon && <span style={{ fontSize: '24px', marginBottom: '8px' }}>{icon}</span>}
+            <div className="stat-value" style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}>
                 {typeof value === 'number' ? value.toLocaleString() : value}
                 {badge && <EthosBadge score={getMinScoreForBand(badge)} band={badge} showScore={false} size="sm" />}
             </div>
-            <div style={cardLabelStyles}>{label}</div>
+            <div className="stat-label">{label}</div>
         </div>
     );
 }
@@ -124,14 +143,14 @@ interface MiniStatProps {
 
 function MiniStat({ label, value }: MiniStatProps) {
     return (
-        <div style={miniStatStyles}>
-            <span style={{ fontWeight: 600 }}>{typeof value === 'number' ? value.toLocaleString() : value}</span>
-            <span style={{ fontSize: '11px', color: '#6b7280', marginLeft: '4px' }}>{label}</span>
+        <div style={{ display: 'flex', alignItems: 'center', fontSize: '13px', color: 'var(--text-secondary)' }}>
+            <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{typeof value === 'number' ? value.toLocaleString() : value}</span>
+            <span style={{ marginLeft: '4px', fontSize: '11px' }}>{label}</span>
         </div>
     );
 }
 
-// Helper functions
+// Helper functions (unchanged)
 function formatNumber(num: number): string {
     if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
     if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
@@ -153,104 +172,3 @@ function getMinScoreForBand(band: EthosBand): number {
     };
     return minScores[band];
 }
-
-// Styles
-const containerStyles: React.CSSProperties = {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '16px',
-    padding: '20px',
-    backgroundColor: 'rgba(0, 0, 0, 0.02)',
-    borderRadius: '16px',
-    border: '1px solid rgba(0, 0, 0, 0.08)',
-};
-
-const primaryGridStyles: React.CSSProperties = {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(3, 1fr)',
-    gap: '12px',
-};
-
-const secondaryGridStyles: React.CSSProperties = {
-    display: 'flex',
-    justifyContent: 'center',
-    gap: '20px',
-    paddingTop: '12px',
-    borderTop: '1px solid rgba(0, 0, 0, 0.06)',
-};
-
-const cardStyles: React.CSSProperties = {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    padding: '16px 12px',
-    backgroundColor: 'white',
-    borderRadius: '12px',
-    border: '1px solid rgba(0, 0, 0, 0.06)',
-};
-
-const highlightCardStyles: React.CSSProperties = {
-    backgroundColor: '#dbeafe',
-    borderColor: '#93c5fd',
-};
-
-const cardValueStyles: React.CSSProperties = {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
-    fontSize: '24px',
-    fontWeight: 700,
-    color: '#111827',
-};
-
-const cardLabelStyles: React.CSSProperties = {
-    fontSize: '12px',
-    color: '#6b7280',
-    textAlign: 'center',
-    marginTop: '4px',
-};
-
-const miniStatStyles: React.CSSProperties = {
-    display: 'flex',
-    alignItems: 'center',
-    fontSize: '13px',
-    color: '#374151',
-};
-
-const distributionStyles: React.CSSProperties = {
-    display: 'flex',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: '8px',
-    paddingTop: '12px',
-    borderTop: '1px solid rgba(0, 0, 0, 0.06)',
-};
-
-const bandCountStyles: React.CSSProperties = {
-    display: 'inline-flex',
-    alignItems: 'center',
-};
-
-const loadingStyles: React.CSSProperties = {
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: '40px',
-    backgroundColor: 'rgba(0, 0, 0, 0.02)',
-    borderRadius: '16px',
-};
-
-const pulseStyles: React.CSSProperties = {
-    color: '#6b7280',
-    animation: 'pulse 2s infinite',
-};
-
-const emptyStyles: React.CSSProperties = {
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: '40px',
-    backgroundColor: 'rgba(0, 0, 0, 0.02)',
-    borderRadius: '16px',
-    color: '#9ca3af',
-};

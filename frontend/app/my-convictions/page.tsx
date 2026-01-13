@@ -6,6 +6,7 @@ import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagm
 import { formatEther } from 'viem';
 import { CONTRACTS, API_BASE_URL } from '@/lib/contracts';
 import Link from 'next/link';
+import { EthosBadge, EthosBand } from '@/components/EthosBadge';
 
 interface Position {
     tokenAddress: string;
@@ -16,11 +17,19 @@ interface Position {
     isLocked: boolean;
 }
 
+interface EthosProfile {
+    score: number;
+    band: EthosBand;
+    reviewCount: number;
+    vouchCount: number;
+}
+
 export default function MyConvictionsPage() {
     const { isReady, authFetch } = useMiniApp();
     const { address, isConnected } = useAccount();
     const [positions, setPositions] = useState<Position[]>([]);
     const [loading, setLoading] = useState(true);
+    const [ethosProfile, setEthosProfile] = useState<EthosProfile | null>(null);
 
     // Withdraw transaction
     const { writeContract: withdraw, data: withdrawHash, isPending: isWithdrawing } = useWriteContract();
@@ -47,6 +56,20 @@ export default function MyConvictionsPage() {
             setLoading(false);
         }
     }, [address, authFetch, withdrawSuccess]);
+
+    // Fetch Ethos profile
+    useEffect(() => {
+        if (address) {
+            fetch(`${API_BASE_URL}/ethos/score/address:${address.toLowerCase()}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data && !data.error) {
+                        setEthosProfile(data);
+                    }
+                })
+                .catch(console.error);
+        }
+    }, [address]);
 
     const formatAmount = (amount: string) => {
         try {
@@ -90,6 +113,40 @@ export default function MyConvictionsPage() {
                 <Link href="/" style={{ color: 'var(--text-secondary)' }}>← Back</Link>
                 <div className="page-title">My Convictions</div>
             </div>
+
+            {/* Ethos Profile Card */}
+            {isConnected && ethosProfile && (
+                <div className="card">
+                    <div className="card-header" style={{ justifyContent: 'space-between', marginBottom: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                            <div className="creator-avatar" style={{
+                                width: '56px', height: '56px', fontSize: '24px', margin: 0,
+                                border: '2px solid var(--surface)'
+                            }}>
+                                👤
+                            </div>
+                            <div>
+                                <div style={{ fontSize: '13px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                    Your Reputation
+                                </div>
+                                <div style={{ marginTop: '4px' }}>
+                                    <EthosBadge score={ethosProfile.score} band={ethosProfile.band} size="lg" />
+                                </div>
+                            </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '24px', textAlign: 'center' }}>
+                            <div>
+                                <div style={{ fontSize: '24px', fontWeight: '800', color: 'var(--text-primary)' }}>{ethosProfile.reviewCount}</div>
+                                <div style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 600 }}>Reviews</div>
+                            </div>
+                            <div>
+                                <div style={{ fontSize: '24px', fontWeight: '800', color: 'var(--text-primary)' }}>{ethosProfile.vouchCount}</div>
+                                <div style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 600 }}>Vouches</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {!isConnected ? (
                 <div className="card">
@@ -145,7 +202,10 @@ export default function MyConvictionsPage() {
                                         <Link
                                             href={`/creator/${position.tokenAddress}`}
                                             className="position-token"
-                                            style={{ color: 'var(--primary)' }}
+                                            style={{
+                                                color: 'var(--primary-light)',
+                                                textShadow: '0 0 10px rgba(129, 140, 248, 0.3)'
+                                            }}
                                         >
                                             {position.tokenAddress.slice(0, 6)}...{position.tokenAddress.slice(-4)}
                                         </Link>

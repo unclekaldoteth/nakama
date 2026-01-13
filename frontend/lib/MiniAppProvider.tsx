@@ -131,7 +131,15 @@ export function MiniAppProvider({ children }: { children: ReactNode }) {
                 return;
             }
             try {
-                await sdk.actions.addFrame();
+                const actions = sdk.actions as typeof sdk.actions & {
+                    addMiniApp?: () => Promise<void>;
+                    addFrame?: () => Promise<void>;
+                };
+                if (actions.addMiniApp) {
+                    await actions.addMiniApp();
+                } else if (actions.addFrame) {
+                    await actions.addFrame();
+                }
             } catch (error) {
                 console.error('addMiniApp error:', error);
             }

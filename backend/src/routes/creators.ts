@@ -1,8 +1,9 @@
+/// <reference path="../types/express.d.ts" />
 import { Router, Request, Response } from 'express';
 import { pool } from '../index';
 import { requireQuickAuth } from '../auth/quickAuth';
 import { EthosClient, buildUserkey } from '../services/ethosClient';
-import { calculateCreatorStats, buildSupporterList, Position } from '../services/credibilityCalc';
+import { calculateCreatorStats, Position } from '../services/credibilityCalc';
 
 const router = Router();
 const ethosClient = new EthosClient(pool);
@@ -42,20 +43,36 @@ router.get('/:token/supporters', async (req: Request, res: Response) => {
             [token]
         );
 
+        const supporterRows = result.rows;
+        const userkeys = supporterRows
+            .map(row => buildUserkey(undefined, row.user_address))
+            .filter(Boolean) as string[];
+        const uniqueUserkeys = Array.from(new Set(userkeys));
+        const ethosProfiles = uniqueUserkeys.length > 0
+            ? await ethosClient.bulkLookup(uniqueUserkeys)
+            : new Map();
+
         res.json({
-            supporters: result.rows.map(row => ({
-                address: row.user_address,
-                amount: row.amount,
-                lockEnd: row.lock_end,
-                tier: row.tier,
-                convictionScore: row.conviction_score,
-                user: row.fid ? {
-                    fid: row.fid,
-                    username: row.username,
-                    displayName: row.display_name,
-                    avatarUrl: row.avatar_url,
-                } : null,
-            })),
+            supporters: supporterRows.map(row => {
+                const userkey = buildUserkey(undefined, row.user_address);
+                const ethosProfile = userkey ? ethosProfiles.get(userkey) : null;
+
+                return {
+                    address: row.user_address,
+                    amount: row.amount,
+                    lockEnd: row.lock_end,
+                    tier: row.tier,
+                    convictionScore: row.conviction_score,
+                    ethosScore: ethosProfile?.score,
+                    ethosBand: ethosProfile?.band,
+                    user: row.fid ? {
+                        fid: row.fid,
+                        username: row.username,
+                        displayName: row.display_name,
+                        avatarUrl: row.avatar_url,
+                    } : null,
+                };
+            }),
             total: parseInt(countResult.rows[0].count),
             page,
             limit,

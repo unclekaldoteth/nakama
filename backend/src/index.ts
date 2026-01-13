@@ -6,6 +6,7 @@ import creatorsRouter from './routes/creators';
 import usersRouter from './routes/users';
 import gatedRouter from './routes/gated';
 import ethosRouter from './routes/ethos';
+import tokensRouter from './routes/tokens';
 import { createIndexer } from './indexer/eventIndexer';
 
 dotenv.config();
@@ -35,6 +36,7 @@ app.use('/api/creator', creatorsRouter);
 app.use('/api/me', usersRouter);
 app.use('/api/gated', gatedRouter);
 app.use('/api/ethos', ethosRouter);
+app.use('/api/tokens', tokensRouter);
 
 // Error handler
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {

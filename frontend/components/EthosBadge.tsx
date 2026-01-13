@@ -18,11 +18,11 @@ interface EthosBadgeProps {
 }
 
 const BAND_COLORS: Record<EthosBand, { bg: string; text: string; border: string }> = {
-    Neutral: { bg: '#f3f4f6', text: '#4b5563', border: '#d1d5db' },
-    Known: { bg: '#dbeafe', text: '#1d4ed8', border: '#93c5fd' },
-    Established: { bg: '#d1fae5', text: '#047857', border: '#6ee7b7' },
-    Reputable: { bg: '#ede9fe', text: '#6d28d9', border: '#c4b5fd' },
-    Exemplary: { bg: '#fef3c7', text: '#b45309', border: '#fcd34d' },
+    Neutral: { bg: 'var(--surface-active)', text: 'var(--text-secondary)', border: 'var(--surface-border)' },
+    Known: { bg: 'rgba(6, 182, 212, 0.1)', text: 'var(--accent)', border: 'rgba(6, 182, 212, 0.3)' },
+    Established: { bg: 'rgba(16, 185, 129, 0.1)', text: 'var(--success)', border: 'rgba(16, 185, 129, 0.3)' },
+    Reputable: { bg: 'rgba(139, 92, 246, 0.1)', text: '#A78BFA', border: 'rgba(139, 92, 246, 0.3)' },
+    Exemplary: { bg: 'var(--tier-gold-glow)', text: '#FCD34D', border: 'rgba(252, 211, 77, 0.3)' },
 };
 
 export function getBandFromScore(score: number): EthosBand {

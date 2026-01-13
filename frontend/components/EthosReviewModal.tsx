@@ -1,14 +1,17 @@
 /**
  * Ethos Review Modal Component
- * Allows users to write Ethos reviews about creators or supporters
+ * Allows users to write on-chain Ethos reviews about creators
+ * Uses wagmi for direct wallet signing on Base mainnet
  */
 
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { EthosBadge, getBandFromScore, EthosBand } from './EthosBadge';
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+import { useWriteContract, useWaitForTransactionReceipt, useAccount, useChainId } from 'wagmi';
+import { isAddress } from 'viem';
+import { EthosBadge, EthosBand } from './EthosBadge';
+import { API_BASE_URL } from '@/lib/contracts';
+import { ETHOS_REVIEW_CONTRACT, REVIEW_SCORES, ReviewScore } from '@/lib/ethosContracts';
 
 interface EthosReviewModalProps {
     isOpen: boolean;
@@ -17,10 +20,13 @@ interface EthosReviewModalProps {
     targetAddress?: string;
     targetName?: string;
     authToken?: string;
+    authFetch?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 }
 
 interface EligibilityStatus {
     eligible: boolean;
+    reason?: string;
+    message?: string;
     ethos: {
         score: number;
         band: string;
@@ -46,28 +52,60 @@ export function EthosReviewModal({
     targetAddress,
     targetName,
     authToken,
+    authFetch,
 }: EthosReviewModalProps) {
+    const { isConnected } = useAccount();
+    const chainId = useChainId();
+    const isBaseMainnet = chainId === 8453;
     const [rating, setRating] = useState<'positive' | 'neutral' | 'negative'>('positive');
     const [comment, setComment] = useState('');
     const [loading, setLoading] = useState(false);
-    const [submitting, setSubmitting] = useState(false);
     const [eligibility, setEligibility] = useState<EligibilityStatus | null>(null);
-    const [result, setResult] = useState<{ success: boolean; message: string; deepLink?: string } | null>(null);
+    const [result, setResult] = useState<{ success: boolean; message: string; txHash?: string } | null>(null);
+
+    // On-chain review writing
+    const { writeContract, data: txHash, isPending: isWriting, error: writeError } = useWriteContract();
+    const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
+        hash: txHash,
+    });
+
+    // Handle TX confirmation
+    useEffect(() => {
+        if (isConfirmed && txHash) {
+            setResult({
+                success: true,
+                message: 'Review submitted on-chain!',
+                txHash: txHash,
+            });
+        }
+    }, [isConfirmed, txHash]);
+
+    // Handle write errors
+    useEffect(() => {
+        if (writeError) {
+            setResult({
+                success: false,
+                message: writeError.message || 'Transaction failed',
+            });
+        }
+    }, [writeError]);
 
     useEffect(() => {
-        if (isOpen && authToken) {
+        if (isOpen) {
+            setEligibility(null);
+            setResult(null);
             checkEligibility();
         }
-    }, [isOpen, authToken]);
+    }, [isOpen, authToken, authFetch]);
 
     async function checkEligibility() {
         setLoading(true);
         try {
-            const response = await fetch(`${API_BASE_URL}/api/ethos/eligibility`, {
-                headers: {
-                    'Authorization': `Bearer ${authToken}`,
-                },
-            });
+            const fetcher = authFetch || fetch;
+            const headers = authFetch
+                ? undefined
+                : (authToken ? { 'Authorization': `Bearer ${authToken}` } : undefined);
+            const response = await fetcher(`${API_BASE_URL}/ethos/eligibility`, { headers });
             if (response.ok) {
                 const data = await response.json();
                 setEligibility(data);
@@ -79,54 +117,46 @@ export function EthosReviewModal({
         }
     }
 
-    async function handleSubmit(e: React.FormEvent) {
+    function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
-        if (!eligibility?.eligible) return;
-
-        setSubmitting(true);
-        try {
-            const response = await fetch(`${API_BASE_URL}/api/ethos/review`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${authToken}`,
-                },
-                body: JSON.stringify({
-                    targetFid,
-                    targetAddress,
-                    rating,
-                    comment: comment.trim() || undefined,
-                }),
-            });
-
-            const data = await response.json();
-
-            if (response.ok && data.success) {
-                setResult({
-                    success: true,
-                    message: data.message,
-                    deepLink: data.deepLink,
-                });
-            } else {
-                setResult({
-                    success: false,
-                    message: data.error || 'Failed to submit review',
-                });
-            }
-        } catch (error) {
-            setResult({
-                success: false,
-                message: 'Network error. Please try again.',
-            });
-        } finally {
-            setSubmitting(false);
+        if (!eligibility?.eligible || !targetAddress) return;
+        if (!isConnected) {
+            setResult({ success: false, message: 'Connect your wallet to submit an on-chain review.' });
+            return;
         }
+        if (!isBaseMainnet) {
+            setResult({ success: false, message: 'Switch to Base mainnet to submit this review.' });
+            return;
+        }
+        if (!isAddress(targetAddress)) {
+            setResult({ success: false, message: 'Invalid creator address.' });
+            return;
+        }
+
+        // Convert rating to on-chain score (0=negative, 1=neutral, 2=positive)
+        const score = REVIEW_SCORES[rating as ReviewScore];
+
+        // Build metadata JSON for the review
+        const metadata = JSON.stringify({
+            source: 'nakama',
+            targetFid: targetFid,
+            timestamp: Date.now(),
+        });
+
+        // Submit on-chain via EthosReview contract
+        writeContract({
+            address: ETHOS_REVIEW_CONTRACT.address,
+            abi: ETHOS_REVIEW_CONTRACT.abi,
+            functionName: 'addReview',
+            args: [score, targetAddress as `0x${string}`, comment.trim() || '', metadata],
+        });
     }
 
     function handleClose() {
         setRating('positive');
         setComment('');
         setResult(null);
+        setEligibility(null);
         onClose();
     }
 
@@ -154,14 +184,14 @@ export function EthosReviewModal({
                             <>
                                 <div style={{ fontSize: '48px', marginBottom: '12px' }}>✓</div>
                                 <p style={{ marginBottom: '16px' }}>{result.message}</p>
-                                {result.deepLink && (
+                                {result.txHash && (
                                     <a
-                                        href={result.deepLink}
+                                        href={`https://basescan.org/tx/${result.txHash}`}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         style={linkButtonStyles}
                                     >
-                                        Complete on Ethos →
+                                        View on Basescan →
                                     </a>
                                 )}
                                 <button onClick={handleClose} style={secondaryButtonStyles}>
@@ -180,7 +210,7 @@ export function EthosReviewModal({
                     </div>
                 ) : (
                     <>
-                        {eligibility && (
+                        {eligibility?.ethos && eligibility?.nakama && eligibility?.rateLimit && (
                             <div style={eligibilityStyles}>
                                 <EligibilityRow
                                     label="Ethos Score"
@@ -206,6 +236,12 @@ export function EthosReviewModal({
                                     eligible={eligibility.rateLimit.eligible}
                                     requirement="Max 3 per day"
                                 />
+                            </div>
+                        )}
+
+                        {eligibility?.message && !eligibility?.eligible && (
+                            <div style={{ marginBottom: '12px', color: '#6b7280', fontSize: '13px' }}>
+                                {eligibility.message}
                             </div>
                         )}
 
@@ -245,12 +281,27 @@ export function EthosReviewModal({
                                     <div style={charCountStyles}>{comment.length}/500</div>
                                 </div>
 
+                                {!isConnected && (
+                                    <div style={{ color: '#6b7280', fontSize: '13px', marginBottom: '12px' }}>
+                                        Connect your wallet to sign the on-chain review.
+                                    </div>
+                                )}
+                                {isConnected && !isBaseMainnet && (
+                                    <div style={{ color: '#6b7280', fontSize: '13px', marginBottom: '12px' }}>
+                                        Switch to Base mainnet to submit this review.
+                                    </div>
+                                )}
+
                                 <div style={footerStyles}>
                                     <button type="button" onClick={handleClose} style={secondaryButtonStyles}>
                                         Cancel
                                     </button>
-                                    <button type="submit" disabled={submitting} style={primaryButtonStyles}>
-                                        {submitting ? 'Submitting...' : 'Submit to Ethos'}
+                                    <button
+                                        type="submit"
+                                        disabled={isWriting || isConfirming || !isConnected || !isBaseMainnet}
+                                        style={primaryButtonStyles}
+                                    >
+                                        {isWriting ? 'Signing...' : isConfirming ? 'Confirming...' : 'Submit to Ethos'}
                                     </button>
                                 </div>
                             </form>

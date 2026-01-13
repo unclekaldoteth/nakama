@@ -5,7 +5,7 @@
 
 import { Router, Request, Response } from 'express';
 import { pool } from '../index';
-import { EthosClient, buildUserkey, EthosWriteRequest, getBandFromScore } from '../services/ethosClient';
+import { EthosClient, buildUserkey, EthosWriteRequest } from '../services/ethosClient';
 import { optionalQuickAuth, requireQuickAuth } from '../auth/quickAuth';
 
 const router = Router();
@@ -318,6 +318,22 @@ router.get('/eligibility', optionalQuickAuth, async (req: Request, res: Response
                 eligible: false,
                 reason: 'authentication_required',
                 message: 'Please connect your wallet to check eligibility.',
+                ethos: {
+                    score: 0,
+                    band: 'Unknown',
+                    eligible: false,
+                    required: MIN_WRITE_SCORE,
+                },
+                nakama: {
+                    tier: 0,
+                    eligible: false,
+                    required: MIN_WRITE_TIER,
+                },
+                rateLimit: {
+                    used: 0,
+                    remaining: 0,
+                    eligible: false,
+                },
             });
         }
 

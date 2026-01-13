@@ -4,12 +4,13 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { useMiniApp } from '@/lib/MiniAppProvider';
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
-import { formatEther, parseEther } from 'viem';
+import { formatEther, parseEther, isAddress, zeroAddress } from 'viem';
 import { CONTRACTS, TIER_NAMES, API_BASE_URL } from '@/lib/contracts';
 import Link from 'next/link';
 import { EthosStats, CreatorEthosStats } from '@/components/EthosStats';
 import { EthosBadge, EthosVerifiedBadge, getBandFromScore, EthosBand } from '@/components/EthosBadge';
 import { EthosReviewModal } from '@/components/EthosReviewModal';
+import { TokenPicker } from '@/components/TokenPicker';
 
 interface Supporter {
     address: string;
@@ -26,7 +27,7 @@ interface Supporter {
 
 export default function CreatorPage() {
     const { token } = useParams<{ token: string }>();
-    const { isReady, actions } = useMiniApp();
+    const { isReady, actions, authFetch } = useMiniApp();
     const { address, isConnected } = useAccount();
 
     const [stakeAmount, setStakeAmount] = useState('');
@@ -40,16 +41,17 @@ export default function CreatorPage() {
     const [pendingStake, setPendingStake] = useState<{ amount: bigint; lockDays: bigint } | null>(null);
     const [showReviewModal, setShowReviewModal] = useState(false);
 
-    const isValidToken = typeof token === 'string'
-        && token !== '0x0000000000000000000000000000000000000000';
+    const parsedToken = typeof token === 'string' && isAddress(token) ? token : null;
+    const tokenAddress = parsedToken ?? zeroAddress;
+    const isValidToken = tokenAddress !== zeroAddress;
 
     // Read user position
     const { data: position } = useReadContract({
         address: CONTRACTS.vault.address as `0x${string}`,
         abi: CONTRACTS.vault.abi,
         functionName: 'getPosition',
-        args: [address as `0x${string}`, token as `0x${string}`],
-        query: { enabled: !!address && !!token && isValidToken }
+        args: isValidToken && address ? [address as `0x${string}`, tokenAddress as `0x${string}`] : undefined,
+        query: { enabled: !!address && isValidToken }
     });
 
     // Read user tier
@@ -57,16 +59,16 @@ export default function CreatorPage() {
         address: CONTRACTS.vault.address as `0x${string}`,
         abi: CONTRACTS.vault.abi,
         functionName: 'getTier',
-        args: [address as `0x${string}`, token as `0x${string}`],
-        query: { enabled: !!address && !!token && isValidToken }
+        args: isValidToken && address ? [address as `0x${string}`, tokenAddress as `0x${string}`] : undefined,
+        query: { enabled: !!address && isValidToken }
     });
 
     const { data: allowance } = useReadContract({
-        address: token as `0x${string}`,
+        address: tokenAddress as `0x${string}`,
         abi: CONTRACTS.erc20.abi,
         functionName: 'allowance',
         args: [address as `0x${string}`, CONTRACTS.vault.address as `0x${string}`],
-        query: { enabled: !!address && !!token && isValidToken }
+        query: { enabled: !!address && isValidToken }
     });
 
     // Stake transaction
@@ -89,20 +91,20 @@ export default function CreatorPage() {
 
     // Fetch supporters from API
     useEffect(() => {
-        if (token && isValidToken) {
-            fetch(`${API_BASE_URL}/creator/${token}/supporters`)
+        if (tokenAddress && isValidToken) {
+            fetch(`${API_BASE_URL}/creator/${tokenAddress}/supporters`)
                 .then(res => res.json())
                 .then(data => setSupporters(data.supporters || []))
                 .catch(console.error);
 
-            fetch(`${API_BASE_URL}/creator/${token}/stats`)
+            fetch(`${API_BASE_URL}/creator/${tokenAddress}/stats`)
                 .then(res => res.json())
                 .then(data => setStats(data))
                 .catch(console.error);
 
             // Fetch Ethos-weighted stats
             setEthosLoading(true);
-            fetch(`${API_BASE_URL}/creator/${token}/ethos-stats`)
+            fetch(`${API_BASE_URL}/creator/${tokenAddress}/ethos-stats`)
                 .then(res => res.json())
                 .then(data => {
                     if (data && !data.error) {
@@ -112,15 +114,15 @@ export default function CreatorPage() {
                 .catch(console.error)
                 .finally(() => setEthosLoading(false));
         }
-    }, [isValidToken, token, stakeSuccess]);
+    }, [isValidToken, stakeSuccess, tokenAddress]);
 
     const handleBuy = async () => {
-        if (!isValidToken) return;
-        await actions.swapToken(token);
+        if (!isValidToken || !tokenAddress) return;
+        await actions.swapToken(tokenAddress);
     };
 
     const handleStake = async () => {
-        if (!stakeAmount || !lockDays || !isValidToken) return;
+        if (!stakeAmount || !lockDays || !isValidToken || !tokenAddress) return;
         let stakeAmountWei: bigint;
         try {
             stakeAmountWei = parseEther(stakeAmount);
@@ -129,11 +131,11 @@ export default function CreatorPage() {
             return;
         }
 
-        const allowanceValue = typeof allowance === 'bigint' ? allowance : 0n;
+        const allowanceValue = typeof allowance === 'bigint' ? allowance : BigInt(0);
         if (allowanceValue < stakeAmountWei) {
             setPendingStake({ amount: stakeAmountWei, lockDays: BigInt(lockDays) });
             approve({
-                address: token as `0x${string}`,
+                address: tokenAddress as `0x${string}`,
                 abi: CONTRACTS.erc20.abi,
                 functionName: 'approve',
                 args: [CONTRACTS.vault.address as `0x${string}`, stakeAmountWei],
@@ -145,16 +147,17 @@ export default function CreatorPage() {
             address: CONTRACTS.vault.address as `0x${string}`,
             abi: CONTRACTS.vault.abi,
             functionName: 'stake',
-            args: [token as `0x${string}`, stakeAmountWei, BigInt(lockDays)],
+            args: [tokenAddress as `0x${string}`, stakeAmountWei, BigInt(lockDays)],
         });
     };
 
     const handleClaimBadge = async () => {
+        if (!tokenAddress) return;
         claimBadge({
             address: CONTRACTS.badge.address as `0x${string}`,
             abi: CONTRACTS.badge.abi,
             functionName: 'claimOrRefresh',
-            args: [token as `0x${string}`],
+            args: [tokenAddress as `0x${string}`],
         });
     };
 
@@ -168,9 +171,29 @@ export default function CreatorPage() {
         );
     }
 
+    if (!isValidToken) {
+        return (
+            <div className="container">
+                <div className="page-header">
+                    <Link href="/" style={{ color: 'var(--text-secondary)' }}>← Back</Link>
+                    <div className="page-title">Find Creator</div>
+                </div>
+                <div className="card" style={{ padding: '24px' }}>
+                    <h3 style={{ marginBottom: '16px', color: 'var(--text-primary)' }}>
+                        🔍 Search Creator Coins
+                    </h3>
+                    <p style={{ marginBottom: '20px', color: 'var(--text-secondary)', fontSize: '14px' }}>
+                        Search by Farcaster username or wallet address to find creator coins on Base.
+                    </p>
+                    <TokenPicker />
+                </div>
+            </div>
+        );
+    }
+
     const hasPosition = position && (position as any)[0] > BigInt(0);
     const currentTier = tier ? Number(tier) : 0;
-    const allowanceValue = typeof allowance === 'bigint' ? allowance : 0n;
+    const allowanceValue = typeof allowance === 'bigint' ? allowance : BigInt(0);
     const stakeAmountWei = stakeAmount ? (() => {
         try {
             return parseEther(stakeAmount);
@@ -181,15 +204,15 @@ export default function CreatorPage() {
     const needsApproval = !!stakeAmountWei && allowanceValue < stakeAmountWei;
 
     useEffect(() => {
-        if (!approveSuccess || !pendingStake || !isValidToken) return;
+        if (!approveSuccess || !pendingStake || !isValidToken || !tokenAddress) return;
         stake({
             address: CONTRACTS.vault.address as `0x${string}`,
             abi: CONTRACTS.vault.abi,
             functionName: 'stake',
-            args: [token as `0x${string}`, pendingStake.amount, pendingStake.lockDays],
+            args: [tokenAddress as `0x${string}`, pendingStake.amount, pendingStake.lockDays],
         });
         setPendingStake(null);
-    }, [approveSuccess, isValidToken, pendingStake, stake, token]);
+    }, [approveSuccess, isValidToken, pendingStake, stake, tokenAddress]);
 
     return (
         <div className="container">
@@ -256,11 +279,13 @@ export default function CreatorPage() {
                         className="btn"
                         onClick={() => setShowReviewModal(true)}
                         style={{
-                            backgroundColor: '#8B5CF6',
+                            background: 'linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)',
                             color: 'white',
                             marginTop: '8px',
-                            width: '100%'
+                            width: '100%',
+                            boxShadow: '0 4px 12px rgba(139, 92, 246, 0.3)'
                         }}
+                        disabled={!isValidToken}
                     >
                         ✍️ Write Ethos Feedback
                     </button>
@@ -287,7 +312,7 @@ export default function CreatorPage() {
             {activeTab === 'supporters' && (
                 <div className="section">
                     {/* Supporter Filter Toggles */}
-                    <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+                    <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
                         {(['all', 'known', 'credible'] as const).map(filter => (
                             <button
                                 key={filter}
@@ -307,6 +332,47 @@ export default function CreatorPage() {
                                 {filter === 'credible' && 'Top Credible'}
                             </button>
                         ))}
+
+                        {/* Export Allowlist Button */}
+                        <button
+                            onClick={() => {
+                                const filtered = supporters.filter(s => {
+                                    if (supporterFilter === 'known') return (s.ethosScore || 0) >= 1400;
+                                    if (supporterFilter === 'credible') return (s.ethosScore || 0) >= 1600;
+                                    return true;
+                                });
+                                // ... csv generation ...
+                                const csv = [
+                                    ['address', 'amount', 'tier', 'ethosScore', 'ethosBand'].join(','),
+                                    ...filtered.map(s => [
+                                        s.address,
+                                        s.amount,
+                                        s.tier,
+                                        s.ethosScore || '',
+                                        s.ethosBand || ''
+                                    ].join(','))
+                                ].join('\n');
+                                const blob = new Blob([csv], { type: 'text/csv' });
+                                const url = URL.createObjectURL(blob);
+                                const a = document.createElement('a');
+                                a.href = url;
+                                a.download = `allowlist-${supporterFilter}-${tokenAddress.slice(0, 8)}.csv`;
+                                a.click();
+                                URL.revokeObjectURL(url);
+                            }}
+                            className="btn-secondary"
+                            style={{
+                                marginLeft: 'auto',
+                                padding: '8px 16px',
+                                fontSize: '13px',
+                                minHeight: '36px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                            }}
+                        >
+                            📥 Export CSV
+                        </button>
                     </div>
 
                     {supporters.length === 0 ? (
@@ -461,8 +527,9 @@ export default function CreatorPage() {
             <EthosReviewModal
                 isOpen={showReviewModal}
                 onClose={() => setShowReviewModal(false)}
-                targetAddress={token}
+                targetAddress={tokenAddress || undefined}
                 targetName={`Creator ${token?.slice(0, 6)}...`}
+                authFetch={authFetch}
             />
         </div>
     );
@@ -474,4 +541,3 @@ function getTierForDays(days: number): string {
     if (days >= 7) return 'Silver';
     return 'Bronze';
 }
-
