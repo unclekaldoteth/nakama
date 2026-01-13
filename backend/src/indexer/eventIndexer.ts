@@ -1,4 +1,4 @@
-import { createPublicClient, http, parseAbiItem, Address, decodeEventLog } from 'viem';
+import { createPublicClient, http, Address, decodeEventLog } from 'viem';
 import { baseSepolia, base } from 'viem/chains';
 import { Pool } from 'pg';
 
@@ -44,6 +44,38 @@ const VAULT_ABI = [
     },
 ] as const;
 
+const SECONDS_PER_DAY = 86400n;
+
+function sqrtBigInt(value: bigint): bigint {
+    if (value < 0n) {
+        throw new Error('sqrt only supports non-negative values');
+    }
+    if (value < 2n) {
+        return value;
+    }
+
+    let x0 = value / 2n;
+    let x1 = (x0 + value / x0) / 2n;
+    while (x1 < x0) {
+        x0 = x1;
+        x1 = (x0 + value / x0) / 2n;
+    }
+    return x0;
+}
+
+function calculateTierFromLockDays(lockDays: bigint): number {
+    if (lockDays >= 90n) {
+        return 4;
+    }
+    if (lockDays >= 30n) {
+        return 3;
+    }
+    if (lockDays >= 7n) {
+        return 2;
+    }
+    return 1;
+}
+
 interface IndexerConfig {
     vaultAddress: Address;
     rpcUrl: string;
@@ -64,6 +96,7 @@ export class EventIndexer {
     private chainId: number;
     private isRunning: boolean = false;
     private pollInterval: number = 5000; // 5 seconds
+    private blockTimestampCache: Map<bigint, bigint> = new Map();
 
     constructor(pool: Pool, config: IndexerConfig) {
         this.pool = pool;
@@ -75,6 +108,16 @@ export class EventIndexer {
             chain,
             transport: http(config.rpcUrl),
         });
+    }
+
+    private async getBlockTimestamp(blockNumber: bigint): Promise<bigint> {
+        const cached = this.blockTimestampCache.get(blockNumber);
+        if (cached !== undefined) {
+            return cached;
+        }
+        const block = await this.client.getBlock({ blockNumber });
+        this.blockTimestampCache.set(blockNumber, block.timestamp);
+        return block.timestamp;
     }
 
     /**
@@ -109,54 +152,69 @@ export class EventIndexer {
     /**
      * Process Staked event
      */
-    private async handleStaked(args: Record<string, unknown>): Promise<void> {
+    private async handleStaked(args: Record<string, unknown>, blockTimestamp: bigint): Promise<void> {
         const user = (args.user as string).toLowerCase();
         const token = (args.token as string).toLowerCase();
-        const amount = (args.amount as bigint).toString();
-        const lockEnd = Number(args.lockEnd as bigint);
+        const amount = args.amount as bigint;
+        const lockEnd = args.lockEnd as bigint;
+        const lockDays = lockEnd > blockTimestamp
+            ? (lockEnd - blockTimestamp) / SECONDS_PER_DAY
+            : 0n;
+        const tier = calculateTierFromLockDays(lockDays);
+        const convictionScore = sqrtBigInt(amount).toString();
+        const lockEndSeconds = Number(lockEnd);
+        const blockTimestampSeconds = Number(blockTimestamp);
 
-        console.log(`[Staked] User: ${user}, Token: ${token}, Amount: ${amount}`);
+        console.log(`[Staked] User: ${user}, Token: ${token}, Amount: ${amount.toString()}`);
 
         await this.pool.query(
-            `INSERT INTO positions (user_address, token_address, amount, lock_end, chain_id, created_at, updated_at)
-       VALUES ($1, $2, $3, to_timestamp($4), $5, NOW(), NOW())
+            `INSERT INTO positions (user_address, token_address, amount, lock_end, tier, conviction_score, chain_id, created_at, updated_at)
+       VALUES ($1, $2, $3, to_timestamp($4), $5, $6, $7, to_timestamp($8), to_timestamp($8))
        ON CONFLICT (user_address, token_address, chain_id)
-       DO UPDATE SET amount = $3, lock_end = to_timestamp($4), updated_at = NOW()`,
-            [user, token, amount, lockEnd, this.chainId]
+       DO UPDATE SET amount = $3, lock_end = to_timestamp($4), tier = $5, conviction_score = $6, updated_at = to_timestamp($8)`,
+            [user, token, amount.toString(), lockEndSeconds, tier, convictionScore, this.chainId, blockTimestampSeconds]
         );
     }
 
     /**
      * Process StakeIncreased event
      */
-    private async handleStakeIncreased(args: Record<string, unknown>): Promise<void> {
+    private async handleStakeIncreased(args: Record<string, unknown>, blockTimestamp: bigint): Promise<void> {
         const user = (args.user as string).toLowerCase();
         const token = (args.token as string).toLowerCase();
-        const newTotal = (args.newTotal as bigint).toString();
+        const newTotal = args.newTotal as bigint;
+        const convictionScore = sqrtBigInt(newTotal).toString();
+        const blockTimestampSeconds = Number(blockTimestamp);
 
-        console.log(`[StakeIncreased] User: ${user}, Token: ${token}, NewTotal: ${newTotal}`);
+        console.log(`[StakeIncreased] User: ${user}, Token: ${token}, NewTotal: ${newTotal.toString()}`);
 
         await this.pool.query(
-            `UPDATE positions SET amount = $1, updated_at = NOW()
-       WHERE user_address = $2 AND token_address = $3 AND chain_id = $4`,
-            [newTotal, user, token, this.chainId]
+            `UPDATE positions SET amount = $1, conviction_score = $2, updated_at = to_timestamp($3)
+       WHERE user_address = $4 AND token_address = $5 AND chain_id = $6`,
+            [newTotal.toString(), convictionScore, blockTimestampSeconds, user, token, this.chainId]
         );
     }
 
     /**
      * Process LockExtended event
      */
-    private async handleLockExtended(args: Record<string, unknown>): Promise<void> {
+    private async handleLockExtended(args: Record<string, unknown>, blockTimestamp: bigint): Promise<void> {
         const user = (args.user as string).toLowerCase();
         const token = (args.token as string).toLowerCase();
-        const newLockEnd = Number(args.newLockEnd as bigint);
+        const newLockEnd = args.newLockEnd as bigint;
+        const lockDays = newLockEnd > blockTimestamp
+            ? (newLockEnd - blockTimestamp) / SECONDS_PER_DAY
+            : 0n;
+        const tier = calculateTierFromLockDays(lockDays);
+        const newLockEndSeconds = Number(newLockEnd);
+        const blockTimestampSeconds = Number(blockTimestamp);
 
-        console.log(`[LockExtended] User: ${user}, Token: ${token}, NewLockEnd: ${newLockEnd}`);
+        console.log(`[LockExtended] User: ${user}, Token: ${token}, NewLockEnd: ${newLockEndSeconds}`);
 
         await this.pool.query(
-            `UPDATE positions SET lock_end = to_timestamp($1), updated_at = NOW()
-       WHERE user_address = $2 AND token_address = $3 AND chain_id = $4`,
-            [newLockEnd, user, token, this.chainId]
+            `UPDATE positions SET lock_end = to_timestamp($1), tier = $2, updated_at = to_timestamp($3)
+       WHERE user_address = $4 AND token_address = $5 AND chain_id = $6`,
+            [newLockEndSeconds, tier, blockTimestampSeconds, user, token, this.chainId]
         );
     }
 
@@ -180,6 +238,7 @@ export class EventIndexer {
      */
     async syncBlockRange(fromBlock: bigint, toBlock: bigint): Promise<void> {
         console.log(`Syncing blocks ${fromBlock} to ${toBlock}...`);
+        this.blockTimestampCache.clear();
 
         // Fetch all logs from vault contract
         const logs = await this.client.getLogs({
@@ -197,12 +256,14 @@ export class EventIndexer {
                     data: log.data,
                     topics: log.topics,
                 });
-                decodedLogs.push({
-                    eventName: decoded.eventName,
-                    args: decoded.args as Record<string, unknown>,
-                    blockNumber: log.blockNumber ?? BigInt(0),
-                    logIndex: log.logIndex ?? 0,
-                });
+                if (log.blockNumber !== null && log.blockNumber !== undefined) {
+                    decodedLogs.push({
+                        eventName: decoded.eventName,
+                        args: decoded.args as Record<string, unknown>,
+                        blockNumber: log.blockNumber,
+                        logIndex: log.logIndex ?? 0,
+                    });
+                }
             } catch {
                 // Not a vault event, skip
             }
@@ -217,25 +278,33 @@ export class EventIndexer {
         });
 
         // Process each log
+        let hadError = false;
         for (const log of decodedLogs) {
             try {
+                const blockTimestamp = await this.getBlockTimestamp(log.blockNumber);
                 switch (log.eventName) {
                     case 'Staked':
-                        await this.handleStaked(log.args);
+                        await this.handleStaked(log.args, blockTimestamp);
                         break;
                     case 'StakeIncreased':
-                        await this.handleStakeIncreased(log.args);
+                        await this.handleStakeIncreased(log.args, blockTimestamp);
                         break;
                     case 'LockExtended':
-                        await this.handleLockExtended(log.args);
+                        await this.handleLockExtended(log.args, blockTimestamp);
                         break;
                     case 'Withdrawn':
                         await this.handleWithdrawn(log.args);
                         break;
                 }
             } catch (error) {
+                hadError = true;
                 console.error(`Error processing ${log.eventName} at block ${log.blockNumber}:`, error);
             }
+        }
+
+        if (hadError) {
+            console.warn(`Skipping sync_state update for blocks ${fromBlock} to ${toBlock} due to processing errors`);
+            return;
         }
 
         // Update sync state
@@ -295,8 +364,11 @@ export class EventIndexer {
 // Create and export indexer instance
 export function createIndexer(pool: Pool): EventIndexer | null {
     const vaultAddress = process.env.VAULT_ADDRESS as Address;
-    const rpcUrl = process.env.BASE_SEPOLIA_RPC_URL || process.env.BASE_RPC_URL;
-    const chainId = parseInt(process.env.CHAIN_ID || '84532');
+    const chainId = parseInt(process.env.CHAIN_ID || '84532', 10);
+    const preferredRpcUrl = chainId === 8453
+        ? process.env.BASE_RPC_URL
+        : process.env.BASE_SEPOLIA_RPC_URL;
+    const rpcUrl = preferredRpcUrl || process.env.BASE_RPC_URL || process.env.BASE_SEPOLIA_RPC_URL;
 
     if (!vaultAddress || !rpcUrl) {
         console.warn('Missing VAULT_ADDRESS or RPC_URL - indexer disabled');

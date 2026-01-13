@@ -94,6 +94,7 @@ export async function requireQuickAuth(req: Request, res: Response, next: NextFu
         }
 
         req.quickAuth = { fid, payload, token, domain };
+        req.user = { fid, address: payload.address as string | undefined };
         return next();
     } catch (error) {
         return res.status(401).json({ error: 'Invalid Quick Auth token' });
@@ -117,6 +118,7 @@ export async function optionalQuickAuth(req: Request, res: Response, next: NextF
         }
 
         req.quickAuth = { fid, payload, token, domain };
+        req.user = { fid, address: payload.address as string | undefined };
         return next();
     } catch (error) {
         return res.status(401).json({ error: 'Invalid Quick Auth token' });

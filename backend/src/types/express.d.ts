@@ -11,8 +11,14 @@ declare global {
                 token: string;
                 domain: string;
             };
+            // Used by Quick Auth middleware for simplified access
+            user?: {
+                fid?: number;
+                address?: string;
+            };
         }
     }
 }
 
-export {};
+export { };
+
