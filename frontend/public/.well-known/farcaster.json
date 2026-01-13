@@ -1,0 +1,17 @@
+{
+  "accountAssociation": {
+    "header": "",
+    "payload": "",
+    "signature": ""
+  },
+  "miniapp": {
+    "version": "1",
+    "name": "Conviction Vault",
+    "homeUrl": "https://conviction-vault.vercel.app",
+    "iconUrl": "https://conviction-vault.vercel.app/miniapp-icon.svg",
+    "imageUrl": "https://conviction-vault.vercel.app/og-image.svg",
+    "buttonTitle": "Open Conviction Vault",
+    "splashImageUrl": "https://conviction-vault.vercel.app/miniapp-icon.svg",
+    "splashBackgroundColor": "#0b1220"
+  }
+}

@@ -1,0 +1,394 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useParams } from 'next/navigation';
+import { useMiniApp } from '@/lib/MiniAppProvider';
+import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { formatEther, parseEther } from 'viem';
+import { CONTRACTS, TIER_NAMES, API_BASE_URL } from '@/lib/contracts';
+import Link from 'next/link';
+
+interface Supporter {
+    address: string;
+    amount: string;
+    tier: number;
+    user: {
+        username: string;
+        displayName: string;
+        avatarUrl: string;
+    } | null;
+}
+
+export default function CreatorPage() {
+    const { token } = useParams<{ token: string }>();
+    const { isReady, actions } = useMiniApp();
+    const { address, isConnected } = useAccount();
+
+    const [stakeAmount, setStakeAmount] = useState('');
+    const [lockDays, setLockDays] = useState('30');
+    const [supporters, setSupporters] = useState<Supporter[]>([]);
+    const [stats, setStats] = useState<any>(null);
+    const [activeTab, setActiveTab] = useState<'supporters' | 'stake'>('supporters');
+    const [pendingStake, setPendingStake] = useState<{ amount: bigint; lockDays: bigint } | null>(null);
+
+    const isValidToken = typeof token === 'string'
+        && token !== '0x0000000000000000000000000000000000000000';
+
+    // Read user position
+    const { data: position } = useReadContract({
+        address: CONTRACTS.vault.address as `0x${string}`,
+        abi: CONTRACTS.vault.abi,
+        functionName: 'getPosition',
+        args: [address as `0x${string}`, token as `0x${string}`],
+        query: { enabled: !!address && !!token && isValidToken }
+    });
+
+    // Read user tier
+    const { data: tier } = useReadContract({
+        address: CONTRACTS.vault.address as `0x${string}`,
+        abi: CONTRACTS.vault.abi,
+        functionName: 'getTier',
+        args: [address as `0x${string}`, token as `0x${string}`],
+        query: { enabled: !!address && !!token && isValidToken }
+    });
+
+    const { data: allowance } = useReadContract({
+        address: token as `0x${string}`,
+        abi: CONTRACTS.erc20.abi,
+        functionName: 'allowance',
+        args: [address as `0x${string}`, CONTRACTS.vault.address as `0x${string}`],
+        query: { enabled: !!address && !!token && isValidToken }
+    });
+
+    // Stake transaction
+    const { writeContract: stake, data: stakeHash, isPending: isStaking } = useWriteContract();
+    const { isLoading: isConfirming, isSuccess: stakeSuccess } = useWaitForTransactionReceipt({
+        hash: stakeHash,
+    });
+
+    // Approve transaction
+    const { writeContract: approve, data: approveHash, isPending: isApproving } = useWriteContract();
+    const { isSuccess: approveSuccess } = useWaitForTransactionReceipt({
+        hash: approveHash,
+    });
+
+    // Claim badge transaction
+    const { writeContract: claimBadge, data: claimHash, isPending: isClaiming } = useWriteContract();
+    const { isSuccess: claimSuccess } = useWaitForTransactionReceipt({
+        hash: claimHash,
+    });
+
+    // Fetch supporters from API
+    useEffect(() => {
+        if (token) {
+            fetch(`${API_BASE_URL}/creator/${token}/supporters`)
+                .then(res => res.json())
+                .then(data => setSupporters(data.supporters || []))
+                .catch(console.error);
+
+            fetch(`${API_BASE_URL}/creator/${token}/stats`)
+                .then(res => res.json())
+                .then(data => setStats(data))
+                .catch(console.error);
+        }
+    }, [token, stakeSuccess]);
+
+    const handleBuy = async () => {
+        await actions.swapToken(token);
+    };
+
+    const handleStake = async () => {
+        if (!stakeAmount || !lockDays || !isValidToken) return;
+        let stakeAmountWei: bigint;
+        try {
+            stakeAmountWei = parseEther(stakeAmount);
+        } catch (error) {
+            console.error('Invalid stake amount:', error);
+            return;
+        }
+
+        const allowanceValue = typeof allowance === 'bigint' ? allowance : 0n;
+        if (allowanceValue < stakeAmountWei) {
+            setPendingStake({ amount: stakeAmountWei, lockDays: BigInt(lockDays) });
+            approve({
+                address: token as `0x${string}`,
+                abi: CONTRACTS.erc20.abi,
+                functionName: 'approve',
+                args: [CONTRACTS.vault.address as `0x${string}`, stakeAmountWei],
+            });
+            return;
+        }
+
+        stake({
+            address: CONTRACTS.vault.address as `0x${string}`,
+            abi: CONTRACTS.vault.abi,
+            functionName: 'stake',
+            args: [token as `0x${string}`, stakeAmountWei, BigInt(lockDays)],
+        });
+    };
+
+    const handleClaimBadge = async () => {
+        claimBadge({
+            address: CONTRACTS.badge.address as `0x${string}`,
+            abi: CONTRACTS.badge.abi,
+            functionName: 'claimOrRefresh',
+            args: [token as `0x${string}`],
+        });
+    };
+
+    if (!isReady) {
+        return (
+            <div className="container">
+                <div className="loading">
+                    <div className="spinner"></div>
+                </div>
+            </div>
+        );
+    }
+
+    const hasPosition = position && (position as any)[0] > BigInt(0);
+    const currentTier = tier ? Number(tier) : 0;
+    const allowanceValue = typeof allowance === 'bigint' ? allowance : 0n;
+    const stakeAmountWei = stakeAmount ? (() => {
+        try {
+            return parseEther(stakeAmount);
+        } catch {
+            return null;
+        }
+    })() : null;
+    const needsApproval = !!stakeAmountWei && allowanceValue < stakeAmountWei;
+
+    useEffect(() => {
+        if (!approveSuccess || !pendingStake || !isValidToken) return;
+        stake({
+            address: CONTRACTS.vault.address as `0x${string}`,
+            abi: CONTRACTS.vault.abi,
+            functionName: 'stake',
+            args: [token as `0x${string}`, pendingStake.amount, pendingStake.lockDays],
+        });
+        setPendingStake(null);
+    }, [approveSuccess, isValidToken, pendingStake, stake, token]);
+
+    return (
+        <div className="container">
+            {/* Header */}
+            <div className="page-header">
+                <Link href="/" style={{ color: 'var(--text-secondary)' }}>← Back</Link>
+                <div className="page-title">Creator</div>
+            </div>
+
+            {/* Creator Profile */}
+            <div className="creator-profile">
+                <div className="creator-avatar">🎨</div>
+                <h1 className="creator-name">Creator</h1>
+                <p className="creator-token">{token?.slice(0, 6)}...{token?.slice(-4)}</p>
+
+                {currentTier > 0 && (
+                    <div style={{ marginTop: '12px' }}>
+                        <span className={`tier-badge tier-badge-${TIER_NAMES[currentTier].toLowerCase()}`}>
+                            {TIER_NAMES[currentTier]} Supporter
+                        </span>
+                    </div>
+                )}
+            </div>
+
+            {/* Stats */}
+            {stats && (
+                <div className="stats-grid">
+                    <div className="stat-card">
+                        <div className="stat-value">{stats.totalSupporters}</div>
+                        <div className="stat-label">Supporters</div>
+                    </div>
+                    <div className="stat-card">
+                        <div className="stat-value">{stats.legendCount}</div>
+                        <div className="stat-label">Legends</div>
+                    </div>
+                    <div className="stat-card">
+                        <div className="stat-value">{stats.goldCount}</div>
+                        <div className="stat-label">Gold</div>
+                    </div>
+                    <div className="stat-card">
+                        <div className="stat-value">{stats.newThisWeek}</div>
+                        <div className="stat-label">New This Week</div>
+                    </div>
+                </div>
+            )}
+
+            {/* CTA Buttons */}
+            <div className="cta-group">
+                <button className="btn btn-secondary" onClick={handleBuy}>
+                    💰 Buy Coin
+                </button>
+                <button
+                    className="btn btn-primary"
+                    onClick={() => setActiveTab('stake')}
+                    disabled={!isConnected}
+                >
+                    🔒 Stake
+                </button>
+            </div>
+
+            {/* Tabs */}
+            <div className="nav-tabs">
+                <button
+                    className={`nav-tab ${activeTab === 'supporters' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('supporters')}
+                >
+                    Top Supporters
+                </button>
+                <button
+                    className={`nav-tab ${activeTab === 'stake' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('stake')}
+                >
+                    Stake
+                </button>
+            </div>
+
+            {/* Supporters Tab */}
+            {activeTab === 'supporters' && (
+                <div className="section">
+                    {supporters.length === 0 ? (
+                        <div className="empty-state">
+                            <div className="empty-state-icon">👥</div>
+                            <p className="empty-state-text">No supporters yet. Be the first!</p>
+                        </div>
+                    ) : (
+                        <div className="supporter-list">
+                            {supporters.map((supporter, index) => (
+                                <div key={supporter.address} className="supporter-item">
+                                    <div className="supporter-rank">{index + 1}</div>
+                                    {supporter.user?.avatarUrl ? (
+                                        <img
+                                            src={supporter.user.avatarUrl}
+                                            alt=""
+                                            className="supporter-avatar"
+                                        />
+                                    ) : (
+                                        <div className="supporter-avatar" style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center'
+                                        }}>
+                                            👤
+                                        </div>
+                                    )}
+                                    <div className="supporter-info">
+                                        <div className="supporter-name">
+                                            {supporter.user?.displayName || supporter.user?.username || 'Anonymous'}
+                                        </div>
+                                        <div className="supporter-address">
+                                            {supporter.address.slice(0, 6)}...{supporter.address.slice(-4)}
+                                        </div>
+                                    </div>
+                                    <span className={`tier-badge tier-badge-${TIER_NAMES[supporter.tier].toLowerCase()}`}>
+                                        {TIER_NAMES[supporter.tier]}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Stake Tab */}
+            {activeTab === 'stake' && (
+                <div className="section">
+                    {!isConnected ? (
+                        <div className="card">
+                            <p style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>
+                                Connect your wallet to stake
+                            </p>
+                        </div>
+                    ) : hasPosition ? (
+                        <div className="card">
+                            <h3 style={{ marginBottom: '16px' }}>Your Position</h3>
+                            <div className="position-details">
+                                <div className="position-detail">
+                                    <div className="position-detail-value">
+                                        {formatEther((position as any)[0])}
+                                    </div>
+                                    <div className="position-detail-label">Staked</div>
+                                </div>
+                                <div className="position-detail">
+                                    <div className="position-detail-value">{TIER_NAMES[currentTier]}</div>
+                                    <div className="position-detail-label">Tier</div>
+                                </div>
+                            </div>
+
+                            <button
+                                className="btn btn-primary btn-full"
+                                style={{ marginTop: '16px' }}
+                                onClick={handleClaimBadge}
+                                disabled={isClaiming || currentTier === 0}
+                            >
+                                {isClaiming ? 'Claiming...' : claimSuccess ? '✓ Badge Claimed!' : '🏅 Claim Badge'}
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="card">
+                            <h3 style={{ marginBottom: '16px' }}>Create Position</h3>
+
+                            <div className="form-group">
+                                <label className="form-label">Amount to Stake</label>
+                                <input
+                                    type="number"
+                                    className="form-input"
+                                    placeholder="0.0"
+                                    value={stakeAmount}
+                                    onChange={(e) => setStakeAmount(e.target.value)}
+                                />
+                            </div>
+
+                            <div className="form-group">
+                                <label className="form-label">Lock Duration (days)</label>
+                                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                    {['7', '30', '60', '90'].map(days => (
+                                        <button
+                                            key={days}
+                                            className={`btn ${lockDays === days ? 'btn-primary' : 'btn-secondary'}`}
+                                            style={{ padding: '8px 16px', minHeight: 'auto' }}
+                                            onClick={() => setLockDays(days)}
+                                        >
+                                            {days}d
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div style={{
+                                padding: '12px',
+                                background: 'var(--surface-hover)',
+                                borderRadius: 'var(--radius-md)',
+                                marginBottom: '16px'
+                            }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
+                                    <span style={{ color: 'var(--text-secondary)' }}>Tier you'll reach:</span>
+                                    <span className={`tier-badge tier-badge-${getTierForDays(Number(lockDays)).toLowerCase()}`}>
+                                        {getTierForDays(Number(lockDays))}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <button
+                                className="btn btn-primary btn-full"
+                                onClick={handleStake}
+                                disabled={isStaking || isConfirming || isApproving || !stakeAmount || !isValidToken}
+                            >
+                                {needsApproval
+                                    ? (isApproving ? 'Approving...' : 'Approve & Stake')
+                                    : (isStaking || isConfirming ? 'Processing...' : stakeSuccess ? '✓ Staked!' : '🔒 Stake & Lock')}
+                            </button>
+                        </div>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+}
+
+function getTierForDays(days: number): string {
+    if (days >= 90) return 'Legend';
+    if (days >= 30) return 'Gold';
+    if (days >= 7) return 'Silver';
+    return 'Bronze';
+}

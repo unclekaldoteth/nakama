@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+cache/
+artifacts/
+typechain-types/
+
+# Environment files - NEVER commit these
+.env
+.env.local
+.env.*.local
+*.env
+
+# Private keys
+*.pem
+*.key
+.key.local
+
+# Deployment outputs
+deployments.json
+
+# Coverage
+coverage/
+coverage.json
+
+# Misc
+.DS_Store

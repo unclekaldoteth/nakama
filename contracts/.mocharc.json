@@ -1,0 +1,11 @@
+{
+    "extension": [
+        "ts"
+    ],
+    "spec": "test/**/*.test.ts",
+    "require": [
+        "ts-node/register",
+        "@nomicfoundation/hardhat-chai-matchers/register"
+    ],
+    "timeout": 60000
+}

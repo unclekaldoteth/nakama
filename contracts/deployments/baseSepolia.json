@@ -1,0 +1,9 @@
+{
+  "network": "baseSepolia",
+  "chainId": 84532,
+  "timestamp": "2026-01-13T00:17:50.341Z",
+  "contracts": {
+    "ConvictionVault": "0x805daf87844E78fE86Bc0DfaBf5a6A6F4E24d218",
+    "ConvictionBadge": "0x810BFa0A3aEa3aF7187a853A75f9827bD213f5b4"
+  }
+}
