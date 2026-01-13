@@ -80,7 +80,7 @@ export default function CreatorPage() {
 
     // Fetch supporters from API
     useEffect(() => {
-        if (token) {
+        if (token && isValidToken) {
             fetch(`${API_BASE_URL}/creator/${token}/supporters`)
                 .then(res => res.json())
                 .then(data => setSupporters(data.supporters || []))
@@ -91,9 +91,10 @@ export default function CreatorPage() {
                 .then(data => setStats(data))
                 .catch(console.error);
         }
-    }, [token, stakeSuccess]);
+    }, [isValidToken, token, stakeSuccess]);
 
     const handleBuy = async () => {
+        if (!isValidToken) return;
         await actions.swapToken(token);
     };
 
@@ -216,7 +217,7 @@ export default function CreatorPage() {
 
             {/* CTA Buttons */}
             <div className="cta-group">
-                <button className="btn btn-secondary" onClick={handleBuy}>
+                <button className="btn btn-secondary" onClick={handleBuy} disabled={!isValidToken}>
                     💰 Buy Coin
                 </button>
                 <button

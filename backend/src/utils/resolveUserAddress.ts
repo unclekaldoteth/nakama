@@ -15,7 +15,8 @@ function getAddressFromPayload(payload?: Record<string, unknown>): string | null
 
 export async function resolveUserAddress(
     req: Request,
-    pool: Pool
+    pool: Pool,
+    allowFallback = false
 ): Promise<string | null> {
     if (req.quickAuth) {
         const fromToken = getAddressFromPayload(req.quickAuth.payload);
@@ -30,7 +31,9 @@ export async function resolveUserAddress(
             return result.rows[0].address as string;
         }
 
-        return null;
+        if (!allowFallback) {
+            return null;
+        }
     }
 
     const headerAddress = req.headers['x-user-address'] as string | undefined;

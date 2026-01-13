@@ -11,7 +11,7 @@ const router = Router();
  */
 router.get('/positions', optionalQuickAuth, async (req: Request, res: Response) => {
     try {
-        const userAddress = await resolveUserAddress(req, pool);
+        const userAddress = await resolveUserAddress(req, pool, true);
 
         if (!userAddress) {
             return res.status(400).json({ error: 'User address required' });
@@ -57,7 +57,7 @@ router.get('/positions', optionalQuickAuth, async (req: Request, res: Response) 
  */
 router.get('/badges', optionalQuickAuth, async (req: Request, res: Response) => {
     try {
-        const userAddress = await resolveUserAddress(req, pool);
+        const userAddress = await resolveUserAddress(req, pool, true);
 
         if (!userAddress) {
             return res.status(400).json({ error: 'User address required' });

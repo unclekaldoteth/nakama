@@ -1,3 +1,6 @@
+-- Required for gen_random_uuid()
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 -- Indexed positions from blockchain events
 CREATE TABLE IF NOT EXISTS positions (
     id SERIAL PRIMARY KEY,
