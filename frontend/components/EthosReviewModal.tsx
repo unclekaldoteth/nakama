@@ -12,6 +12,7 @@ import { isAddress } from 'viem';
 import { EthosBadge, EthosBand } from './EthosBadge';
 import { API_BASE_URL } from '@/lib/contracts';
 import { ETHOS_REVIEW_CONTRACT, REVIEW_SCORES, ReviewScore } from '@/lib/ethosContracts';
+import { useMiniApp } from '@/lib/MiniAppProvider';
 
 interface EthosReviewModalProps {
     isOpen: boolean;
@@ -56,6 +57,7 @@ export function EthosReviewModal({
 }: EthosReviewModalProps) {
     const { isConnected } = useAccount();
     const chainId = useChainId();
+    const { actions } = useMiniApp();
     const isBaseMainnet = chainId === 8453;
     const [rating, setRating] = useState<'positive' | 'neutral' | 'negative'>('positive');
     const [comment, setComment] = useState('');
@@ -69,7 +71,7 @@ export function EthosReviewModal({
         hash: txHash,
     });
 
-    // Handle TX confirmation
+    // Handle TX confirmation + composeCast
     useEffect(() => {
         if (isConfirmed && txHash) {
             setResult({
@@ -77,8 +79,13 @@ export function EthosReviewModal({
                 message: 'Review submitted on-chain!',
                 txHash: txHash,
             });
+
+            // Prompt share cast about review
+            const ratingEmoji = rating === 'positive' ? '👍' : rating === 'neutral' ? '🤝' : '👎';
+            const castText = `${ratingEmoji} Just left an Ethos review for ${targetName || targetAddress?.slice(0, 8) + '...'}!\n\nBuilding on-chain reputation via @nakama`;
+            actions.composeCast(castText, [`https://basescan.org/tx/${txHash}`]);
         }
-    }, [isConfirmed, txHash]);
+    }, [isConfirmed, txHash, rating, targetName, targetAddress, actions]);
 
     // Handle write errors
     useEffect(() => {

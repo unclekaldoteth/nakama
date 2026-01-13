@@ -19,6 +19,7 @@ interface Supporter {
     ethosScore?: number;
     ethosBand?: EthosBand;
     user: {
+        fid?: number;
         username: string;
         displayName: string;
         avatarUrl: string;
@@ -116,6 +117,18 @@ export default function CreatorPage() {
         }
     }, [isValidToken, stakeSuccess, tokenAddress]);
 
+    // Prompt share cast and addMiniApp after successful stake
+    useEffect(() => {
+        if (stakeSuccess && tokenAddress && lockDays) {
+            // Compose a cast about the stake
+            const castText = `🔒 Just locked tokens for ${lockDays} days in @nakama App!\n\nShowing conviction for ${tokenAddress.slice(0, 6)}...${tokenAddress.slice(-4)}`;
+            actions.composeCast(castText, [`https://nakama.app/creator/${tokenAddress}`]);
+
+            // Prompt to add mini app after first stake
+            actions.addMiniApp();
+        }
+    }, [stakeSuccess, tokenAddress, lockDays, actions]);
+
     const handleBuy = async () => {
         if (!isValidToken || !tokenAddress) return;
         await actions.swapToken(tokenAddress);
@@ -183,7 +196,7 @@ export default function CreatorPage() {
                         🔍 Search Creator Coins
                     </h3>
                     <p style={{ marginBottom: '20px', color: 'var(--text-secondary)', fontSize: '14px' }}>
-                        Search by Farcaster username or wallet address to find creator coins on Base.
+                        Search by Farcaster username or Contract Address to find creator coins on Base.
                     </p>
                     <TokenPicker />
                 </div>
@@ -389,7 +402,16 @@ export default function CreatorPage() {
                                     return true;
                                 })
                                 .map((supporter, index) => (
-                                    <div key={supporter.address} className="supporter-item">
+                                    <div
+                                        key={supporter.address}
+                                        className="supporter-item"
+                                        onClick={() => {
+                                            if (supporter.user?.fid) {
+                                                actions.viewProfile(supporter.user.fid);
+                                            }
+                                        }}
+                                        style={{ cursor: supporter.user?.fid ? 'pointer' : 'default' }}
+                                    >
                                         <div className="supporter-rank">{index + 1}</div>
                                         {supporter.user?.avatarUrl ? (
                                             <img

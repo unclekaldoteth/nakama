@@ -1,6 +1,10 @@
 /**
  * Token Picker Component
  * Search and select creator coins from Clanker
+ * 
+ * TODO: Integrate FIP-247 Profile Tokens when available
+ * - Will replace Clanker search with verified profile_token from Hub API
+ * - USER_DATA_TYPE_PROFILE_TOKEN (type 13) in CAIP-19 format
  */
 
 'use client';
@@ -102,6 +106,24 @@ export function TokenPicker({ onSelect }: TokenPickerProps) {
                 </div>
             )}
 
+            {/* Disclaimer about unverified results */}
+            {tokens.length > 0 && (
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '10px 14px',
+                    background: 'rgba(251, 191, 36, 0.1)',
+                    border: '1px solid rgba(251, 191, 36, 0.3)',
+                    borderRadius: '10px',
+                    fontSize: '12px',
+                    color: '#FBBF24'
+                }}>
+                    <span>⚠️</span>
+                    <span>Results from Clanker API. Always verify the token contract before staking.</span>
+                </div>
+            )}
+
             {tokens.length > 0 && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     {tokens.map((token) => (
@@ -160,7 +182,18 @@ export function TokenPicker({ onSelect }: TokenPickerProps) {
                                 </div>
                             )}
                             <div style={{ flex: 1 }}>
-                                <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{token.name}</div>
+                                <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                                    {token.name}
+                                    <span style={{
+                                        marginLeft: '8px',
+                                        padding: '2px 6px',
+                                        fontSize: '10px',
+                                        background: 'rgba(251, 191, 36, 0.15)',
+                                        color: '#FBBF24',
+                                        borderRadius: '4px',
+                                        fontWeight: 500
+                                    }}>UNVERIFIED</span>
+                                </div>
                                 <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>${token.symbol}</div>
                             </div>
                             <div style={{ fontSize: '12px', color: 'var(--text-muted)', fontFamily: 'monospace' }}>

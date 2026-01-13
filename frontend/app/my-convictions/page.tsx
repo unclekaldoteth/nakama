@@ -164,7 +164,7 @@ export default function MyConvictionsPage() {
                     <div className="empty-state">
                         <div className="empty-state-icon">🔒</div>
                         <p className="empty-state-text">No positions yet</p>
-                        <Link href="/" className="btn btn-primary" style={{ marginTop: '16px' }}>
+                        <Link href="/creator/0x0000000000000000000000000000000000000000" className="btn btn-primary" style={{ marginTop: '16px' }}>
                             Find Creators to Support
                         </Link>
                     </div>
