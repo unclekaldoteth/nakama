@@ -7,11 +7,16 @@ import { useAccount, useReadContract, useWriteContract, useWaitForTransactionRec
 import { formatEther, parseEther } from 'viem';
 import { CONTRACTS, TIER_NAMES, API_BASE_URL } from '@/lib/contracts';
 import Link from 'next/link';
+import { EthosStats, CreatorEthosStats } from '@/components/EthosStats';
+import { EthosBadge, EthosVerifiedBadge, getBandFromScore, EthosBand } from '@/components/EthosBadge';
+import { EthosReviewModal } from '@/components/EthosReviewModal';
 
 interface Supporter {
     address: string;
     amount: string;
     tier: number;
+    ethosScore?: number;
+    ethosBand?: EthosBand;
     user: {
         username: string;
         displayName: string;
@@ -28,8 +33,12 @@ export default function CreatorPage() {
     const [lockDays, setLockDays] = useState('30');
     const [supporters, setSupporters] = useState<Supporter[]>([]);
     const [stats, setStats] = useState<any>(null);
+    const [ethosStats, setEthosStats] = useState<CreatorEthosStats | null>(null);
+    const [ethosLoading, setEthosLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<'supporters' | 'stake'>('supporters');
+    const [supporterFilter, setSupporterFilter] = useState<'all' | 'known' | 'credible'>('all');
     const [pendingStake, setPendingStake] = useState<{ amount: bigint; lockDays: bigint } | null>(null);
+    const [showReviewModal, setShowReviewModal] = useState(false);
 
     const isValidToken = typeof token === 'string'
         && token !== '0x0000000000000000000000000000000000000000';
@@ -90,6 +99,18 @@ export default function CreatorPage() {
                 .then(res => res.json())
                 .then(data => setStats(data))
                 .catch(console.error);
+
+            // Fetch Ethos-weighted stats
+            setEthosLoading(true);
+            fetch(`${API_BASE_URL}/creator/${token}/ethos-stats`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data && !data.error) {
+                        setEthosStats(data);
+                    }
+                })
+                .catch(console.error)
+                .finally(() => setEthosLoading(false));
         }
     }, [isValidToken, token, stakeSuccess]);
 
@@ -193,8 +214,11 @@ export default function CreatorPage() {
                 )}
             </div>
 
-            {/* Stats */}
-            {stats && (
+            {/* Ethos-first Stats (Vibeathon) */}
+            <EthosStats stats={ethosStats} loading={ethosLoading} />
+
+            {/* Legacy Stats (secondary) */}
+            {stats && !ethosStats && (
                 <div className="stats-grid">
                     <div className="stat-card">
                         <div className="stat-value">{stats.totalSupporters}</div>
@@ -227,6 +251,20 @@ export default function CreatorPage() {
                 >
                     🔒 Stake
                 </button>
+                {isConnected && (
+                    <button
+                        className="btn"
+                        onClick={() => setShowReviewModal(true)}
+                        style={{
+                            backgroundColor: '#8B5CF6',
+                            color: 'white',
+                            marginTop: '8px',
+                            width: '100%'
+                        }}
+                    >
+                        ✍️ Write Ethos Feedback
+                    </button>
+                )}
             </div>
 
             {/* Tabs */}
@@ -248,6 +286,29 @@ export default function CreatorPage() {
             {/* Supporters Tab */}
             {activeTab === 'supporters' && (
                 <div className="section">
+                    {/* Supporter Filter Toggles */}
+                    <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+                        {(['all', 'known', 'credible'] as const).map(filter => (
+                            <button
+                                key={filter}
+                                onClick={() => setSupporterFilter(filter)}
+                                style={{
+                                    padding: '8px 16px',
+                                    borderRadius: '20px',
+                                    border: supporterFilter === filter ? 'none' : '1px solid #e5e7eb',
+                                    backgroundColor: supporterFilter === filter ? '#3B82F6' : 'white',
+                                    color: supporterFilter === filter ? 'white' : '#374151',
+                                    fontSize: '13px',
+                                    cursor: 'pointer',
+                                }}
+                            >
+                                {filter === 'all' && 'All'}
+                                {filter === 'known' && 'Known+'}
+                                {filter === 'credible' && 'Top Credible'}
+                            </button>
+                        ))}
+                    </div>
+
                     {supporters.length === 0 ? (
                         <div className="empty-state">
                             <div className="empty-state-icon">👥</div>
@@ -255,37 +316,49 @@ export default function CreatorPage() {
                         </div>
                     ) : (
                         <div className="supporter-list">
-                            {supporters.map((supporter, index) => (
-                                <div key={supporter.address} className="supporter-item">
-                                    <div className="supporter-rank">{index + 1}</div>
-                                    {supporter.user?.avatarUrl ? (
-                                        <img
-                                            src={supporter.user.avatarUrl}
-                                            alt=""
-                                            className="supporter-avatar"
-                                        />
-                                    ) : (
-                                        <div className="supporter-avatar" style={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center'
-                                        }}>
-                                            👤
+                            {supporters
+                                .filter(s => {
+                                    if (supporterFilter === 'known') return (s.ethosScore || 0) >= 1400;
+                                    if (supporterFilter === 'credible') return (s.ethosScore || 0) >= 1600;
+                                    return true;
+                                })
+                                .map((supporter, index) => (
+                                    <div key={supporter.address} className="supporter-item">
+                                        <div className="supporter-rank">{index + 1}</div>
+                                        {supporter.user?.avatarUrl ? (
+                                            <img
+                                                src={supporter.user.avatarUrl}
+                                                alt=""
+                                                className="supporter-avatar"
+                                            />
+                                        ) : (
+                                            <div className="supporter-avatar" style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center'
+                                            }}>
+                                                👤
+                                            </div>
+                                        )}
+                                        <div className="supporter-info">
+                                            <div className="supporter-name">
+                                                {supporter.user?.displayName || supporter.user?.username || 'Anonymous'}
+                                                {supporter.ethosScore && supporter.ethosScore >= 1400 && (
+                                                    <EthosVerifiedBadge score={supporter.ethosScore} size="sm" />
+                                                )}
+                                            </div>
+                                            <div className="supporter-address" style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                                                {supporter.address.slice(0, 6)}...{supporter.address.slice(-4)}
+                                                {supporter.ethosBand && (
+                                                    <EthosBadge score={supporter.ethosScore || 1200} band={supporter.ethosBand} size="sm" showScore={false} />
+                                                )}
+                                            </div>
                                         </div>
-                                    )}
-                                    <div className="supporter-info">
-                                        <div className="supporter-name">
-                                            {supporter.user?.displayName || supporter.user?.username || 'Anonymous'}
-                                        </div>
-                                        <div className="supporter-address">
-                                            {supporter.address.slice(0, 6)}...{supporter.address.slice(-4)}
-                                        </div>
+                                        <span className={`tier-badge tier-badge-${TIER_NAMES[supporter.tier].toLowerCase()}`}>
+                                            {TIER_NAMES[supporter.tier]}
+                                        </span>
                                     </div>
-                                    <span className={`tier-badge tier-badge-${TIER_NAMES[supporter.tier].toLowerCase()}`}>
-                                        {TIER_NAMES[supporter.tier]}
-                                    </span>
-                                </div>
-                            ))}
+                                ))}
                         </div>
                     )}
                 </div>
@@ -383,6 +456,14 @@ export default function CreatorPage() {
                     )}
                 </div>
             )}
+
+            {/* Ethos Review Modal */}
+            <EthosReviewModal
+                isOpen={showReviewModal}
+                onClose={() => setShowReviewModal(false)}
+                targetAddress={token}
+                targetName={`Creator ${token?.slice(0, 6)}...`}
+            />
         </div>
     );
 }
@@ -393,3 +474,4 @@ function getTierForDays(days: number): string {
     if (days >= 7) return 'Silver';
     return 'Bronze';
 }
+

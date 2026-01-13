@@ -1,8 +1,11 @@
 import { Router, Request, Response } from 'express';
 import { pool } from '../index';
 import { requireQuickAuth } from '../auth/quickAuth';
+import { EthosClient, buildUserkey } from '../services/ethosClient';
+import { calculateCreatorStats, buildSupporterList, Position } from '../services/credibilityCalc';
 
 const router = Router();
+const ethosClient = new EthosClient(pool);
 
 /**
  * GET /api/creator/:token/supporters
@@ -105,6 +108,59 @@ router.get('/:token/stats', async (req: Request, res: Response) => {
     } catch (error) {
         console.error('Error fetching stats:', error);
         res.status(500).json({ error: 'Failed to fetch stats' });
+    }
+});
+
+/**
+ * GET /api/creator/:token/ethos-stats
+ * Get Ethos-weighted credibility stats for Vibeathon (Ethos-first metrics)
+ */
+router.get('/:token/ethos-stats', async (req: Request, res: Response) => {
+    try {
+        const token = req.params.token as string;
+
+        // Fetch all positions for this token
+        const positionsResult = await pool.query(
+            `SELECT 
+                user_address,
+                token_address,
+                amount,
+                lock_end,
+                tier,
+                created_at
+             FROM positions
+             WHERE LOWER(token_address) = LOWER($1) AND amount > 0
+             ORDER BY conviction_score DESC`,
+            [token]
+        );
+
+        if (positionsResult.rows.length === 0) {
+            return res.json(null);
+        }
+
+        // Convert to Position format
+        const positions: Position[] = positionsResult.rows.map(row => ({
+            userAddress: row.user_address,
+            tokenAddress: row.token_address,
+            amount: row.amount,
+            lockEnd: row.lock_end,
+            tier: row.tier,
+            createdAt: row.created_at,
+        }));
+
+        // Build userkeys for Ethos lookup
+        const userkeys = positions.map(p => buildUserkey(undefined, p.userAddress)).filter(Boolean) as string[];
+
+        // Bulk fetch Ethos profiles
+        const ethosProfiles = await ethosClient.bulkLookup(userkeys);
+
+        // Calculate credibility-weighted stats
+        const stats = calculateCreatorStats(positions, ethosProfiles);
+
+        res.json(stats);
+    } catch (error) {
+        console.error('Error fetching Ethos stats:', error);
+        res.status(500).json({ error: 'Failed to fetch Ethos stats' });
     }
 });
 
