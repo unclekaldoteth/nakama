@@ -11,6 +11,7 @@ import { EthosStats, CreatorEthosStats } from '@/components/EthosStats';
 import { EthosBadge, EthosVerifiedBadge, getBandFromScore, EthosBand } from '@/components/EthosBadge';
 import { EthosReviewModal } from '@/components/EthosReviewModal';
 import { TokenAddressInput } from '@/components/TokenAddressInput';
+import { getZoraCoin, ZoraCoinData } from '@/lib/zoraApi';
 
 interface Supporter {
     address: string;
@@ -41,6 +42,7 @@ export default function CreatorPage() {
     const [supporterFilter, setSupporterFilter] = useState<'all' | 'known' | 'credible'>('all');
     const [pendingStake, setPendingStake] = useState<{ amount: bigint; lockDays: bigint } | null>(null);
     const [showReviewModal, setShowReviewModal] = useState(false);
+    const [zoraCoin, setZoraCoin] = useState<ZoraCoinData | null>(null);
 
     const parsedToken = typeof token === 'string' && isAddress(token) ? token : null;
     const tokenAddress = parsedToken ?? zeroAddress;
@@ -114,6 +116,11 @@ export default function CreatorPage() {
                 })
                 .catch(console.error)
                 .finally(() => setEthosLoading(false));
+
+            // Fetch Zora coin data for creator profile
+            getZoraCoin(tokenAddress).then(data => {
+                if (data) setZoraCoin(data);
+            });
         }
     }, [isValidToken, stakeSuccess, tokenAddress]);
 
@@ -237,9 +244,42 @@ export default function CreatorPage() {
 
             {/* Creator Profile */}
             <div className="creator-profile">
-                <div className="creator-avatar">🎨</div>
-                <h1 className="creator-name">Creator</h1>
-                <p className="creator-token">{token?.slice(0, 6)}...{token?.slice(-4)}</p>
+                {zoraCoin?.mediaContent?.previewImage?.medium ? (
+                    <img
+                        src={zoraCoin.mediaContent.previewImage.medium}
+                        alt={zoraCoin.name || 'Creator'}
+                        className="creator-avatar"
+                        style={{
+                            width: '120px',
+                            height: '120px',
+                            borderRadius: '50%',
+                            objectFit: 'cover',
+                            border: '3px solid var(--surface-border)'
+                        }}
+                    />
+                ) : (
+                    <div className="creator-avatar">🎨</div>
+                )}
+                <h1 className="creator-name">
+                    {zoraCoin?.creatorProfile?.handle || zoraCoin?.name || 'Creator'}
+                </h1>
+                <p className="creator-token">
+                    ${zoraCoin?.symbol || `${token?.slice(0, 6)}...${token?.slice(-4)}`}
+                </p>
+
+                {/* Zora Stats */}
+                {zoraCoin && (
+                    <div style={{
+                        display: 'flex',
+                        gap: '16px',
+                        marginTop: '12px',
+                        fontSize: '13px',
+                        color: 'var(--text-secondary)'
+                    }}>
+                        <span>💰 ${parseFloat(zoraCoin.marketCap).toLocaleString(undefined, { maximumFractionDigits: 0 })} mcap</span>
+                        <span>👥 {zoraCoin.uniqueHolders} holders</span>
+                    </div>
+                )}
 
                 {currentTier > 0 && (
                     <div style={{ marginTop: '12px' }}>
