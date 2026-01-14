@@ -1,7 +1,7 @@
 export const CONTRACTS = {
-    // Base Sepolia deployment - 2026-01-13
+    // Base Mainnet deployment - 2026-01-14
     vault: {
-        address: process.env.NEXT_PUBLIC_VAULT_ADDRESS || '0x805daf87844E78fE86Bc0DfaBf5a6A6F4E24d218',
+        address: process.env.NEXT_PUBLIC_VAULT_ADDRESS || '0x457b617E9b63cED88d630761e9690e4207F7f798',
         abi: [
             {
                 "inputs": [{ "name": "token", "type": "address" }, { "name": "amount", "type": "uint256" }, { "name": "lockDays", "type": "uint256" }],
@@ -55,7 +55,7 @@ export const CONTRACTS = {
         ] as const,
     },
     badge: {
-        address: process.env.NEXT_PUBLIC_BADGE_ADDRESS || '0x810BFa0A3aEa3aF7187a853A75f9827bD213f5b4',
+        address: process.env.NEXT_PUBLIC_BADGE_ADDRESS || '0x55f56C46B86fE3961cC51b4ca72CCfBFa4F760Ce',
         abi: [
             {
                 "inputs": [{ "name": "token", "type": "address" }],

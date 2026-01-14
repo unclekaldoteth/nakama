@@ -11,6 +11,7 @@ import { EthosStats, CreatorEthosStats } from '@/components/EthosStats';
 import { EthosBadge, EthosVerifiedBadge, EthosBand } from '@/components/EthosBadge';
 import { EthosReviewModal } from '@/components/EthosReviewModal';
 import { TokenAddressInput } from '@/components/TokenAddressInput';
+import { ConnectWalletButton } from '@/components/ConnectWalletButton';
 import { getZoraCoin, ZoraCoinData } from '@/lib/zoraApi';
 
 interface Supporter {
@@ -527,9 +528,10 @@ export default function CreatorPage() {
                 <div className="section">
                     {!isConnected ? (
                         <div className="card">
-                            <p style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>
+                            <p style={{ textAlign: 'center', color: 'var(--text-secondary)', marginBottom: '8px' }}>
                                 Connect your wallet to stake
                             </p>
+                            <ConnectWalletButton />
                         </div>
                     ) : hasPosition ? (
                         <div className="card">

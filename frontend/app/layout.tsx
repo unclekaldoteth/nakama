@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { MiniAppProvider } from "@/lib/MiniAppProvider";
 import { Web3Provider } from "@/lib/Web3Provider";
+import { FarcasterAutoConnect } from "@/lib/FarcasterAutoConnect";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -30,7 +31,9 @@ export default function RootLayout({
       <body className={inter.className}>
         <Web3Provider>
           <MiniAppProvider>
-            {children}
+            <FarcasterAutoConnect>
+              {children}
+            </FarcasterAutoConnect>
           </MiniAppProvider>
         </Web3Provider>
       </body>

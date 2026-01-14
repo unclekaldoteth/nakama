@@ -1,0 +1,9 @@
+{
+  "network": "base",
+  "chainId": 8453,
+  "timestamp": "2026-01-14T04:54:55.247Z",
+  "contracts": {
+    "ConvictionVault": "0x457b617E9b63cED88d630761e9690e4207F7f798",
+    "ConvictionBadge": "0x55f56C46B86fE3961cC51b4ca72CCfBFa4F760Ce"
+  }
+}
