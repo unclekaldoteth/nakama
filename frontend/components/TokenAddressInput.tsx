@@ -1,80 +1,55 @@
 /**
  * Token Address Input Component
  * Paste a contract address to navigate to creator page
- * Validates ERC20 on-chain using wagmi
+ * Fetches token data from Zora API for avatar and metadata
  */
 
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { isAddress } from 'viem';
-import { useReadContracts } from 'wagmi';
-
-const erc20Abi = [
-    { name: 'name', type: 'function', stateMutability: 'view', inputs: [], outputs: [{ type: 'string' }] },
-    { name: 'symbol', type: 'function', stateMutability: 'view', inputs: [], outputs: [{ type: 'string' }] },
-    { name: 'decimals', type: 'function', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint8' }] },
-] as const;
-
-interface TokenInfo {
-    name: string;
-    symbol: string;
-    decimals: number;
-    address: string;
-}
+import { getZoraCoin, ZoraCoinData } from '@/lib/zoraApi';
 
 export function TokenAddressInput() {
     const router = useRouter();
     const [address, setAddress] = useState('');
     const [error, setError] = useState('');
-    const [tokenInfo, setTokenInfo] = useState<TokenInfo | null>(null);
+    const [isLoading, setIsLoading] = useState(false);
+    const [zoraCoin, setZoraCoin] = useState<ZoraCoinData | null>(null);
 
     const validAddress = isAddress(address) ? address as `0x${string}` : undefined;
 
-    // Read ERC20 metadata on-chain (Base mainnet)
-    const { data, isLoading, isError } = useReadContracts({
-        contracts: validAddress ? [
-            { address: validAddress, abi: erc20Abi, functionName: 'name', chainId: 8453 },
-            { address: validAddress, abi: erc20Abi, functionName: 'symbol', chainId: 8453 },
-            { address: validAddress, abi: erc20Abi, functionName: 'decimals', chainId: 8453 },
-        ] : [],
-        query: { enabled: !!validAddress }
-    });
-
-    // Process contract read results
-    React.useEffect(() => {
+    // Fetch Zora coin data when valid address is entered
+    useEffect(() => {
         if (!validAddress) {
-            setTokenInfo(null);
-            return;
-        }
-
-        if (isError || !data || data.length < 3) {
-            setError('Not a valid ERC20 token on Base');
-            setTokenInfo(null);
-            return;
-        }
-
-        const [nameResult, symbolResult, decimalsResult] = data;
-
-        if (nameResult?.status === 'success' && symbolResult?.status === 'success' && decimalsResult?.status === 'success') {
+            setZoraCoin(null);
             setError('');
-            setTokenInfo({
-                name: nameResult.result as string,
-                symbol: symbolResult.result as string,
-                decimals: decimalsResult.result as number,
-                address: validAddress,
-            });
-        } else {
-            setError('Not a valid ERC20 token on Base');
-            setTokenInfo(null);
+            return;
         }
-    }, [data, isError, validAddress]);
+
+        setIsLoading(true);
+        setError('');
+        setZoraCoin(null);
+
+        getZoraCoin(validAddress).then(data => {
+            if (data) {
+                setZoraCoin(data);
+                setError('');
+            } else {
+                setError('Not a valid Zora creator coin on Base');
+            }
+        }).catch(() => {
+            setError('Failed to fetch token data');
+        }).finally(() => {
+            setIsLoading(false);
+        });
+    }, [validAddress]);
 
     const handleAddressChange = (value: string) => {
         setAddress(value.trim());
         setError('');
-        setTokenInfo(null);
+        setZoraCoin(null);
 
         if (value.trim() && !isAddress(value.trim())) {
             setError('Invalid address format');
@@ -82,8 +57,8 @@ export function TokenAddressInput() {
     };
 
     const handleNavigate = () => {
-        if (tokenInfo) {
-            router.push(`/creator/${tokenInfo.address}`);
+        if (zoraCoin) {
+            router.push(`/creator/${zoraCoin.address}`);
         }
     };
 
@@ -114,7 +89,7 @@ export function TokenAddressInput() {
                 }}>
                     <div className="spinner" style={{ width: '20px', height: '20px', borderWidth: '2px' }}></div>
                     <span style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
-                        Validating token on Base...
+                        Fetching token data from Zora...
                     </span>
                 </div>
             )}
@@ -137,8 +112,8 @@ export function TokenAddressInput() {
                 </div>
             )}
 
-            {/* Token Found - Success State */}
-            {tokenInfo && (
+            {/* Token Found - Success State with Zora Data */}
+            {zoraCoin && (
                 <div style={{
                     display: 'flex',
                     flexDirection: 'column',
@@ -157,21 +132,36 @@ export function TokenAddressInput() {
                             gap: '12px',
                             marginBottom: '12px'
                         }}>
-                            <div style={{
-                                width: '48px',
-                                height: '48px',
-                                borderRadius: '50%',
-                                background: 'var(--gradient-primary)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                fontSize: '20px',
-                                fontWeight: 'bold',
-                                color: 'white'
-                            }}>
-                                {tokenInfo.symbol[0]}
-                            </div>
-                            <div>
+                            {/* Avatar from Zora */}
+                            {zoraCoin.mediaContent?.previewImage?.medium ? (
+                                <img
+                                    src={zoraCoin.mediaContent.previewImage.medium}
+                                    alt={zoraCoin.name}
+                                    style={{
+                                        width: '56px',
+                                        height: '56px',
+                                        borderRadius: '50%',
+                                        objectFit: 'cover',
+                                        border: '2px solid rgba(16, 185, 129, 0.3)'
+                                    }}
+                                />
+                            ) : (
+                                <div style={{
+                                    width: '56px',
+                                    height: '56px',
+                                    borderRadius: '50%',
+                                    background: 'var(--gradient-primary)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: '22px',
+                                    fontWeight: 'bold',
+                                    color: 'white'
+                                }}>
+                                    {zoraCoin.symbol[0]}
+                                </div>
+                            )}
+                            <div style={{ flex: 1 }}>
                                 <div style={{
                                     fontWeight: 600,
                                     color: 'var(--text-primary)',
@@ -180,7 +170,7 @@ export function TokenAddressInput() {
                                     alignItems: 'center',
                                     gap: '8px'
                                 }}>
-                                    {tokenInfo.name}
+                                    {zoraCoin.creatorProfile?.handle || zoraCoin.name}
                                     <span style={{
                                         padding: '2px 6px',
                                         fontSize: '10px',
@@ -188,16 +178,29 @@ export function TokenAddressInput() {
                                         color: '#10B981',
                                         borderRadius: '4px',
                                         fontWeight: 500
-                                    }}>VERIFIED</span>
+                                    }}>ZORA</span>
                                 </div>
                                 <div style={{
                                     fontSize: '14px',
                                     color: 'var(--text-secondary)'
                                 }}>
-                                    ${tokenInfo.symbol}
+                                    ${zoraCoin.symbol}
                                 </div>
                             </div>
                         </div>
+
+                        {/* Zora Stats */}
+                        <div style={{
+                            display: 'flex',
+                            gap: '16px',
+                            marginBottom: '12px',
+                            fontSize: '12px',
+                            color: 'var(--text-muted)'
+                        }}>
+                            <span>💰 ${parseFloat(zoraCoin.marketCap).toLocaleString(undefined, { maximumFractionDigits: 0 })} mcap</span>
+                            <span>👥 {zoraCoin.uniqueHolders} holders</span>
+                        </div>
+
                         <div style={{
                             fontSize: '12px',
                             color: 'var(--text-muted)',
@@ -207,7 +210,7 @@ export function TokenAddressInput() {
                             borderRadius: '8px',
                             wordBreak: 'break-all'
                         }}>
-                            {tokenInfo.address}
+                            {zoraCoin.address}
                         </div>
                     </div>
 
@@ -244,7 +247,7 @@ export function TokenAddressInput() {
                         color: 'var(--text-secondary)',
                         lineHeight: 1.6
                     }}>
-                        <li>Open the creator's profile in Base App</li>
+                        <li>Open the creator's profile in Zora or Base App</li>
                         <li>Tap on their creator coin</li>
                         <li>Copy the contract address</li>
                         <li>Paste it above</li>
