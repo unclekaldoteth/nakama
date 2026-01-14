@@ -136,3 +136,70 @@ export async function searchZoraProfile(query: string): Promise<ZoraProfileResul
     }
 }
 
+/**
+ * Get a Zora profile by wallet address and check if they have a creator coin
+ * Used for auto-detecting creator status for returning users
+ */
+export interface CreatorDetectionResult {
+    isCreator: boolean;
+    creatorCoinAddress: string | null;
+    profile: ZoraProfileResult | null;
+}
+
+export async function getZoraProfileByAddress(address: string): Promise<CreatorDetectionResult> {
+    try {
+        // Normalize address
+        const normalizedAddress = address.toLowerCase();
+
+        // Query Zora API by address
+        const response = await fetch(
+            `https://api-sdk.zora.engineering/profile?identifier=${normalizedAddress}`,
+            {
+                headers: {
+                    'Accept': 'application/json',
+                },
+            }
+        );
+
+        if (!response.ok) {
+            return {
+                isCreator: false,
+                creatorCoinAddress: null,
+                profile: null,
+            };
+        }
+
+        const data = await response.json();
+        const profile = data.profile;
+
+        if (!profile) {
+            return {
+                isCreator: false,
+                creatorCoinAddress: null,
+                profile: null,
+            };
+        }
+
+        const creatorCoinAddress = profile.creatorCoin?.address || null;
+
+        return {
+            isCreator: !!creatorCoinAddress,
+            creatorCoinAddress,
+            profile: {
+                handle: profile.handle || '',
+                displayName: profile.displayName || profile.handle || '',
+                bio: profile.bio || '',
+                avatar: profile.avatar || undefined,
+                creatorCoinAddress,
+            },
+        };
+    } catch (error) {
+        console.error('Failed to get Zora profile by address:', error);
+        return {
+            isCreator: false,
+            creatorCoinAddress: null,
+            profile: null,
+        };
+    }
+}
+

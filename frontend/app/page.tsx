@@ -1,12 +1,70 @@
 'use client';
 
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAccount } from 'wagmi';
 import { useMiniApp } from '@/lib/MiniAppProvider';
+import { useOnboarding } from '@/lib/useOnboarding';
+import { getZoraProfileByAddress } from '@/lib/zoraApi';
 import Link from 'next/link';
 
 export default function HomePage() {
-  const { isReady, isInMiniApp, user } = useMiniApp();
+  const router = useRouter();
+  const { isReady, user } = useMiniApp();
+  const { address, isConnected } = useAccount();
+  const {
+    hasOnboarded,
+    selectedRole,
+    isLoading: onboardingLoading,
+    shouldCheckCreator,
+    setDetectedCreatorToken,
+    updateLastCreatorCheck,
+  } = useOnboarding();
 
-  if (!isReady) {
+  const [isCheckingCreator, setIsCheckingCreator] = useState(false);
+
+  // Handle routing based on onboarding state
+  useEffect(() => {
+    if (onboardingLoading || !isReady) return;
+
+    // First-time user: go to onboarding
+    if (!hasOnboarded) {
+      router.replace('/onboarding');
+      return;
+    }
+
+    if (!selectedRole) {
+      router.replace('/select-role');
+      return;
+    }
+
+    // Returning user: check if they should be redirected to creator home
+    // Only check if they selected creator role, or if we should auto-detect
+    if (selectedRole === 'creator' && isConnected && address && shouldCheckCreator()) {
+      handleCreatorCheck();
+    }
+  }, [hasOnboarded, selectedRole, onboardingLoading, isReady, isConnected, address]);
+
+  async function handleCreatorCheck() {
+    if (isCheckingCreator || !address) return;
+
+    setIsCheckingCreator(true);
+    try {
+      const result = await getZoraProfileByAddress(address);
+      updateLastCreatorCheck();
+
+      if (result.isCreator && result.creatorCoinAddress) {
+        setDetectedCreatorToken(result.creatorCoinAddress);
+        router.replace('/creator-home');
+      }
+    } catch (error) {
+      console.error('Creator check failed:', error);
+    }
+    setIsCheckingCreator(false);
+  }
+
+  // Show loading while checking onboarding state
+  if (!isReady || onboardingLoading || isCheckingCreator) {
     return (
       <div className="container">
         <div className="loading">
@@ -54,13 +112,13 @@ export default function HomePage() {
         </p>
       </div>
 
-      {/* Quick Actions */}
+      {/* Quick Actions - Updated for Supporter view */}
       <div className="section">
         <div className="section-header">
           <h3 className="section-title">Quick Actions</h3>
         </div>
 
-        <Link href="/creator/0x0000000000000000000000000000000000000000" className="card" style={{ display: 'block' }}>
+        <Link href="/find-creators" className="card" style={{ display: 'block' }}>
           <div className="card-header">
             <div style={{
               width: 48,
@@ -72,11 +130,11 @@ export default function HomePage() {
               justifyContent: 'center',
               fontSize: '24px'
             }}>
-              👤
+              🔍
             </div>
             <div>
-              <div className="card-title">Browse Creators</div>
-              <div className="card-subtitle">Find creators to support</div>
+              <div className="card-title">Find Creators</div>
+              <div className="card-subtitle">Search and discover creators to support</div>
             </div>
           </div>
         </Link>
@@ -102,26 +160,29 @@ export default function HomePage() {
           </div>
         </Link>
 
-        <Link href="/creator-settings" className="card" style={{ display: 'block' }}>
-          <div className="card-header">
-            <div style={{
-              width: 48,
-              height: 48,
-              borderRadius: '50%',
-              background: 'linear-gradient(135deg, #9B59B6 0%, #8E44AD 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '24px'
-            }}>
-              ⚙️
+        {/* Show Creator Home link for users who selected creator role */}
+        {selectedRole === 'creator' && (
+          <Link href="/creator-home" className="card" style={{ display: 'block' }}>
+            <div className="card-header">
+              <div style={{
+                width: 48,
+                height: 48,
+                borderRadius: '50%',
+                background: 'linear-gradient(135deg, #9B59B6 0%, #8E44AD 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '24px'
+              }}>
+                🎨
+              </div>
+              <div>
+                <div className="card-title">Creator Dashboard</div>
+                <div className="card-subtitle">View your supporters & manage tiers</div>
+              </div>
             </div>
-            <div>
-              <div className="card-title">Creator Settings</div>
-              <div className="card-subtitle">Configure tier requirements for your supporters</div>
-            </div>
-          </div>
-        </Link>
+          </Link>
+        )}
       </div>
 
       {/* How It Works */}

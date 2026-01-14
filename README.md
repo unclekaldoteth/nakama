@@ -238,6 +238,15 @@ MIT
 
 ## Recent Updates
 
+### v1.3.0 - New App Flow & Role-Based Navigation
+- **Onboarding Carousel**: 3-slide introduction for first-time users
+- **Role Selection**: Users choose Creator or Supporter path on first visit  
+- **Creator Auto-Detection**: Returning users auto-routed via Zora API (checks for creator coin)
+- **Creator Home Dashboard**: Dedicated page with supporter stats, top 3 preview, and quick actions
+- **Find Creators Page**: Dedicated search page with username/address lookup
+- **Improved Navigation**: Clear separation between creator and supporter flows
+- **Zora Profile Integration**: Fetch creator profiles and coins by wallet address
+
 ### v1.2.0 - Creator Tier Configuration & Base Mainnet
 - **Base Mainnet Deployment**: Contracts now live on Base mainnet
 - **Creator Tier Configuration**: Creators can set custom min stake and min ethos thresholds per tier

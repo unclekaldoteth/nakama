@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useMiniApp } from '@/lib/MiniAppProvider';
 import { useAccount, useChainId, useReadContract, useSimulateContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { formatEther, parseUnits, isAddress, zeroAddress } from 'viem';
@@ -38,6 +38,7 @@ interface Supporter {
 }
 
 export default function CreatorPage() {
+    const router = useRouter();
     const { token } = useParams<{ token: string }>();
     const { isReady, actions, authFetch } = useMiniApp();
     const { address, isConnected } = useAccount();
@@ -63,6 +64,13 @@ export default function CreatorPage() {
     const expectedChainId = DEFAULT_CHAIN_ID;
     const expectedChainLabel = CHAIN_LABELS[expectedChainId] ?? `chain ${expectedChainId}`;
     const isWrongChain = isConnected && chainId !== expectedChainId;
+
+    // Redirect to find-creators if invalid token
+    useEffect(() => {
+        if (isReady && !isValidToken) {
+            router.replace('/find-creators');
+        }
+    }, [isReady, isValidToken, router]);
 
     // Read user position
     const { data: position } = useReadContract({
@@ -341,7 +349,7 @@ export default function CreatorPage() {
         setPendingStake(null);
     }, [approveSuccess, isValidToken, pendingStake, stake, tokenAddress, isWrongChain]);
 
-    if (!isReady) {
+    if (!isReady || !isValidToken) {
         return (
             <div className="container">
                 <div className="loading">
@@ -351,31 +359,11 @@ export default function CreatorPage() {
         );
     }
 
-    if (!isValidToken) {
-        return (
-            <div className="container">
-                <div className="page-header">
-                    <Link href="/" style={{ color: 'var(--text-secondary)' }}>← Back</Link>
-                    <div className="page-title">Find Creator</div>
-                </div>
-                <div className="card" style={{ padding: '24px' }}>
-                    <h3 style={{ marginBottom: '16px', color: 'var(--text-primary)' }}>
-                        Find Your Favorite Creator
-                    </h3>
-                    <p style={{ marginBottom: '20px', color: 'var(--text-secondary)', fontSize: '14px' }}>
-                        Type username Creator Coin or Copy the Contract Address from the creator's Base App profile.
-                    </p>
-                    <TokenAddressInput />
-                </div>
-            </div>
-        );
-    }
-
     return (
         <div className="container">
             {/* Header */}
             <div className="page-header">
-                <Link href="/" style={{ color: 'var(--text-secondary)' }}>← Back</Link>
+                <Link href="/find-creators" style={{ color: 'var(--text-secondary)' }}>← Back</Link>
                 <div className="page-title">Creator</div>
             </div>
 
