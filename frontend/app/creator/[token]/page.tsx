@@ -3,8 +3,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { useMiniApp } from '@/lib/MiniAppProvider';
-import { useAccount, useChainId, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
-import { formatEther, parseEther, isAddress, zeroAddress } from 'viem';
+import { useAccount, useChainId, useReadContract, useSimulateContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { formatEther, parseUnits, isAddress, zeroAddress } from 'viem';
 import { CONTRACTS, TIER_NAMES, API_BASE_URL } from '@/lib/contracts';
 import Link from 'next/link';
 import { EthosStats, CreatorEthosStats } from '@/components/EthosStats';
@@ -13,6 +13,15 @@ import { EthosReviewModal } from '@/components/EthosReviewModal';
 import { TokenAddressInput } from '@/components/TokenAddressInput';
 import { ConnectWalletButton } from '@/components/ConnectWalletButton';
 import { getZoraCoin, ZoraCoinData } from '@/lib/zoraApi';
+
+const DEFAULT_CHAIN_ID = (() => {
+    const envValue = Number(process.env.NEXT_PUBLIC_CHAIN_ID);
+    return Number.isFinite(envValue) && envValue > 0 ? envValue : 8453;
+})();
+const CHAIN_LABELS: Record<number, string> = {
+    8453: 'Base mainnet',
+    84532: 'Base Sepolia',
+};
 
 interface Supporter {
     address: string;
@@ -45,11 +54,15 @@ export default function CreatorPage() {
     const [pendingStake, setPendingStake] = useState<{ amount: bigint; lockDays: bigint } | null>(null);
     const [showReviewModal, setShowReviewModal] = useState(false);
     const [zoraCoin, setZoraCoin] = useState<ZoraCoinData | null>(null);
+    const [stakeError, setStakeError] = useState<string | null>(null);
     const lastTokenRef = useRef<string | null>(null);
 
     const parsedToken = typeof token === 'string' && isAddress(token) ? token : null;
     const tokenAddress = parsedToken ?? zeroAddress;
     const isValidToken = tokenAddress !== zeroAddress;
+    const expectedChainId = DEFAULT_CHAIN_ID;
+    const expectedChainLabel = CHAIN_LABELS[expectedChainId] ?? `chain ${expectedChainId}`;
+    const isWrongChain = isConnected && chainId !== expectedChainId;
 
     // Read user position
     const { data: position } = useReadContract({
@@ -74,6 +87,21 @@ export default function CreatorPage() {
         abi: CONTRACTS.erc20.abi,
         functionName: 'allowance',
         args: [address as `0x${string}`, CONTRACTS.vault.address as `0x${string}`],
+        query: { enabled: !!address && isValidToken }
+    });
+
+    const { data: tokenDecimals, error: tokenDecimalsError } = useReadContract({
+        address: tokenAddress as `0x${string}`,
+        abi: CONTRACTS.erc20.abi,
+        functionName: 'decimals',
+        query: { enabled: isValidToken }
+    });
+
+    const { data: tokenBalance, error: tokenBalanceError } = useReadContract({
+        address: tokenAddress as `0x${string}`,
+        abi: CONTRACTS.erc20.abi,
+        functionName: 'balanceOf',
+        args: address ? [address as `0x${string}`] : undefined,
         query: { enabled: !!address && isValidToken }
     });
 
@@ -163,18 +191,50 @@ export default function CreatorPage() {
         }
     }, [stakeSuccess, tokenAddress, lockDays, actions]);
 
+    useEffect(() => {
+        if (stakeError) {
+            setStakeError(null);
+        }
+    }, [stakeAmount, lockDays, tokenAddress, chainId]);
+
     const handleBuy = async () => {
         if (!isValidToken || !tokenAddress) return;
         await actions.swapToken(tokenAddress, chainId);
     };
 
     const handleStake = async () => {
+        setStakeError(null);
         if (!stakeAmount || !lockDays || !isValidToken || !tokenAddress) return;
-        let stakeAmountWei: bigint;
-        try {
-            stakeAmountWei = parseEther(stakeAmount);
-        } catch (error) {
-            console.error('Invalid stake amount:', error);
+        if (!isConnected) {
+            setStakeError('Connect your wallet to stake.');
+            return;
+        }
+        if (isWrongChain) {
+            setStakeError(`Switch to ${expectedChainLabel} to stake.`);
+            return;
+        }
+        if (!isValidLockDays) {
+            setStakeError('Select a valid lock duration.');
+            return;
+        }
+        if (!hasValidDecimals) {
+            setStakeError('Unable to read token decimals. Try again later.');
+            return;
+        }
+        if (!stakeAmountWei || stakeAmountWei <= BigInt(0)) {
+            setStakeError('Enter a valid stake amount.');
+            return;
+        }
+        if (tokenBalanceError) {
+            setStakeError('Unable to read token balance.');
+            return;
+        }
+        if (balanceValue !== null && balanceValue < stakeAmountWei) {
+            setStakeError('Insufficient token balance.');
+            return;
+        }
+        if (stakeSimError) {
+            setStakeError(stakeSimError.shortMessage || stakeSimError.message || 'Simulation failed.');
             return;
         }
 
@@ -208,6 +268,68 @@ export default function CreatorPage() {
         });
     };
 
+    const hasPosition = position && (position as any)[0] > BigInt(0);
+    const currentTier = tier ? Number(tier) : 0;
+    const allowanceValue = typeof allowance === 'bigint' ? allowance : BigInt(0);
+    const normalizedDecimals = typeof tokenDecimals === 'number'
+        ? tokenDecimals
+        : typeof tokenDecimals === 'bigint'
+            ? Number(tokenDecimals)
+            : null;
+    const hasValidDecimals = normalizedDecimals !== null
+        && Number.isFinite(normalizedDecimals)
+        && normalizedDecimals >= 0
+        && normalizedDecimals <= 255;
+    const stakeAmountInput = stakeAmount.trim();
+    const stakeAmountWei = stakeAmountInput && hasValidDecimals ? (() => {
+        try {
+            return parseUnits(stakeAmountInput, normalizedDecimals);
+        } catch {
+            return null;
+        }
+    })() : null;
+    const balanceValue = typeof tokenBalance === 'bigint' ? tokenBalance : null;
+    const hasSufficientBalance = stakeAmountWei ? (balanceValue !== null && balanceValue >= stakeAmountWei) : true;
+    const lockDaysValue = Number(lockDays);
+    const isValidLockDays = Number.isFinite(lockDaysValue) && Number.isInteger(lockDaysValue) && lockDaysValue >= 1 && lockDaysValue <= 365;
+    const needsApproval = !!stakeAmountWei && allowanceValue < stakeAmountWei;
+    const canSimulateStake = isConnected
+        && isValidToken
+        && !isWrongChain
+        && !!stakeAmountWei
+        && stakeAmountWei > BigInt(0)
+        && isValidLockDays
+        && !needsApproval;
+    const { error: stakeSimError } = useSimulateContract({
+        address: CONTRACTS.vault.address as `0x${string}`,
+        abi: CONTRACTS.vault.abi,
+        functionName: 'stake',
+        args: [
+            tokenAddress as `0x${string}`,
+            stakeAmountWei ?? BigInt(0),
+            BigInt(isValidLockDays ? lockDaysValue : 0),
+        ],
+        query: { enabled: canSimulateStake },
+    });
+    const canInitiateStake = isConnected
+        && isValidToken
+        && !isWrongChain
+        && isValidLockDays
+        && !!stakeAmountWei
+        && stakeAmountWei > BigInt(0)
+        && hasSufficientBalance;
+
+    useEffect(() => {
+        if (!approveSuccess || !pendingStake || !isValidToken || !tokenAddress || isWrongChain) return;
+        stake({
+            address: CONTRACTS.vault.address as `0x${string}`,
+            abi: CONTRACTS.vault.abi,
+            functionName: 'stake',
+            args: [tokenAddress as `0x${string}`, pendingStake.amount, pendingStake.lockDays],
+        });
+        setPendingStake(null);
+    }, [approveSuccess, isValidToken, pendingStake, stake, tokenAddress, isWrongChain]);
+
     if (!isReady) {
         return (
             <div className="container">
@@ -237,29 +359,6 @@ export default function CreatorPage() {
             </div>
         );
     }
-
-    const hasPosition = position && (position as any)[0] > BigInt(0);
-    const currentTier = tier ? Number(tier) : 0;
-    const allowanceValue = typeof allowance === 'bigint' ? allowance : BigInt(0);
-    const stakeAmountWei = stakeAmount ? (() => {
-        try {
-            return parseEther(stakeAmount);
-        } catch {
-            return null;
-        }
-    })() : null;
-    const needsApproval = !!stakeAmountWei && allowanceValue < stakeAmountWei;
-
-    useEffect(() => {
-        if (!approveSuccess || !pendingStake || !isValidToken || !tokenAddress) return;
-        stake({
-            address: CONTRACTS.vault.address as `0x${string}`,
-            abi: CONTRACTS.vault.abi,
-            functionName: 'stake',
-            args: [tokenAddress as `0x${string}`, pendingStake.amount, pendingStake.lockDays],
-        });
-        setPendingStake(null);
-    }, [approveSuccess, isValidToken, pendingStake, stake, tokenAddress]);
 
     return (
         <div className="container">
@@ -603,10 +702,36 @@ export default function CreatorPage() {
                                 </div>
                             </div>
 
+                            {isWrongChain && (
+                                <p style={{ color: '#ef4444', fontSize: '13px', marginBottom: '12px' }}>
+                                    Switch to {expectedChainLabel} to stake.
+                                </p>
+                            )}
+                            {!isWrongChain && tokenDecimalsError && (
+                                <p style={{ color: '#ef4444', fontSize: '13px', marginBottom: '12px' }}>
+                                    Unable to read token decimals. Try again later.
+                                </p>
+                            )}
+                            {!isWrongChain && tokenBalanceError && (
+                                <p style={{ color: '#ef4444', fontSize: '13px', marginBottom: '12px' }}>
+                                    Unable to read token balance. Try again later.
+                                </p>
+                            )}
+                            {!isWrongChain && stakeAmountWei && !hasSufficientBalance && (
+                                <p style={{ color: '#ef4444', fontSize: '13px', marginBottom: '12px' }}>
+                                    Insufficient token balance.
+                                </p>
+                            )}
+                            {stakeError && (
+                                <p style={{ color: '#ef4444', fontSize: '13px', marginBottom: '12px' }}>
+                                    {stakeError}
+                                </p>
+                            )}
+
                             <button
                                 className="btn btn-primary btn-full"
                                 onClick={handleStake}
-                                disabled={isStaking || isConfirming || isApproving || !stakeAmount || !isValidToken}
+                                disabled={!canInitiateStake || isStaking || isConfirming || isApproving}
                             >
                                 {needsApproval
                                     ? (isApproving ? 'Approving...' : 'Approve & Stake')
