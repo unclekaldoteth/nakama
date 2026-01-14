@@ -33,11 +33,13 @@ function getCandidateDomains(req: Request): string[] {
     }
 
     if (domains.length === 0 && process.env.FRONTEND_URL) {
-        const normalized = normalizeDomain(process.env.FRONTEND_URL);
-        if (normalized) domains.push(normalized);
+        for (const entry of process.env.FRONTEND_URL.split(',')) {
+            const normalized = normalizeDomain(entry);
+            if (normalized) domains.push(normalized);
+        }
     }
 
-    if (domains.length === 0 && req.headers.origin) {
+    if (req.headers.origin) {
         const normalized = normalizeDomain(req.headers.origin);
         if (normalized) domains.push(normalized);
     }

@@ -20,8 +20,30 @@ export const pool = new Pool({
 });
 
 // Middleware
+const rawOriginList = [
+    process.env.CORS_ORIGINS,
+    process.env.FRONTEND_URLS,
+    process.env.FRONTEND_URL,
+]
+    .filter(Boolean)
+    .join(',');
+const allowedOrigins = rawOriginList
+    .split(',')
+    .map(origin => origin.trim())
+    .filter(Boolean)
+    .map(origin => origin.replace(/\/$/, ''));
+const allowAllOrigins = allowedOrigins.includes('*')
+    || process.env.CORS_ALLOW_ALL === 'true'
+    || process.env.NODE_ENV !== 'production';
+
 app.use(cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: (origin, callback) => {
+        if (!origin) return callback(null, true);
+        const normalizedOrigin = origin.replace(/\/$/, '');
+        if (allowAllOrigins) return callback(null, true);
+        if (allowedOrigins.includes(normalizedOrigin)) return callback(null, true);
+        return callback(new Error('Not allowed by CORS'));
+    },
     credentials: true,
 }));
 app.use(express.json());
@@ -64,4 +86,3 @@ app.listen(PORT, () => {
 });
 
 export default app;
-

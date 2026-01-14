@@ -129,4 +129,8 @@ export const CONTRACTS = {
 export const TIER_NAMES = ['None', 'Bronze', 'Silver', 'Gold', 'Legend'] as const;
 export const TIER_COLORS = ['#666666', '#CD7F32', '#C0C0C0', '#FFD700', '#9333EA'] as const;
 
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+const RAW_API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const NORMALIZED_API_BASE_URL = RAW_API_BASE_URL.replace(/\/$/, '');
+export const API_BASE_URL = NORMALIZED_API_BASE_URL.endsWith('/api')
+    ? NORMALIZED_API_BASE_URL
+    : `${NORMALIZED_API_BASE_URL}/api`;
