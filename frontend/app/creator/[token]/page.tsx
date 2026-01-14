@@ -233,8 +233,8 @@ export default function CreatorPage() {
             setStakeError('Insufficient token balance.');
             return;
         }
-        if (stakeSimError) {
-            setStakeError(stakeSimError.shortMessage || stakeSimError.message || 'Simulation failed.');
+        if (stakeSimErrorMessage) {
+            setStakeError(stakeSimErrorMessage);
             return;
         }
 
@@ -311,6 +311,17 @@ export default function CreatorPage() {
         ],
         query: { enabled: canSimulateStake },
     });
+    const stakeSimErrorMessage = (() => {
+        if (!stakeSimError) return null;
+        if (typeof stakeSimError === 'object' && stakeSimError && 'shortMessage' in stakeSimError) {
+            const message = (stakeSimError as { shortMessage?: string }).shortMessage;
+            if (message) return message;
+        }
+        if (stakeSimError instanceof Error && stakeSimError.message) {
+            return stakeSimError.message;
+        }
+        return 'Simulation failed.';
+    })();
     const canInitiateStake = isConnected
         && isValidToken
         && !isWrongChain
