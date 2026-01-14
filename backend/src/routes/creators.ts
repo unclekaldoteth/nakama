@@ -73,7 +73,7 @@ router.get('/:token/supporters', async (req: Request, res: Response) => {
         );
 
         const supporterRows = result.rows;
-        const tierConfig = await getTierConfigForToken(token);
+        const tierConfig = await getTierConfigForToken(token as string);
         const userkeys = supporterRows
             .map(row => buildUserkey(undefined, row.user_address))
             .filter(Boolean) as string[];
@@ -147,7 +147,7 @@ router.get('/:token/stats', async (req: Request, res: Response) => {
         const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
         let newThisWeek = 0;
 
-        const tierConfig = await getTierConfigForToken(token);
+        const tierConfig = await getTierConfigForToken(token as string);
         const userkeys = rows
             .map(row => buildUserkey(undefined, row.user_address))
             .filter(Boolean) as string[];
@@ -263,7 +263,7 @@ router.get('/:token/allowlist', requireQuickAuth, async (req: Request, res: Resp
             [token]
         );
 
-        const tierConfig = await getTierConfigForToken(token);
+        const tierConfig = await getTierConfigForToken(token as string);
         const userkeys = result.rows
             .map(row => buildUserkey(undefined, row.user_address))
             .filter(Boolean) as string[];
