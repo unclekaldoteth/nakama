@@ -79,3 +79,60 @@ export async function getZoraCoin(address: string): Promise<ZoraCoinData | null>
         return null;
     }
 }
+
+/**
+ * Search for a creator by handle/username and get their creator coin
+ */
+export interface ZoraProfileResult {
+    handle: string;
+    displayName: string;
+    bio: string;
+    avatar?: {
+        previewImage?: {
+            small?: string;
+            medium?: string;
+        };
+    };
+    creatorCoinAddress: string | null;
+}
+
+export async function searchZoraProfile(query: string): Promise<ZoraProfileResult | null> {
+    try {
+        // Clean up the query - remove @ if present
+        const cleanQuery = query.replace(/^@/, '').trim().toLowerCase();
+
+        if (!cleanQuery) return null;
+
+        const response = await fetch(
+            `https://api-sdk.zora.engineering/profile?identifier=${encodeURIComponent(cleanQuery)}`,
+            {
+                headers: {
+                    'Accept': 'application/json',
+                },
+            }
+        );
+
+        if (!response.ok) {
+            return null;
+        }
+
+        const data = await response.json();
+        const profile = data.profile;
+
+        if (!profile) {
+            return null;
+        }
+
+        return {
+            handle: profile.handle || cleanQuery,
+            displayName: profile.displayName || profile.handle || cleanQuery,
+            bio: profile.bio || '',
+            avatar: profile.avatar || undefined,
+            creatorCoinAddress: profile.creatorCoin?.address || null,
+        };
+    } catch (error) {
+        console.error('Failed to search Zora profile:', error);
+        return null;
+    }
+}
+

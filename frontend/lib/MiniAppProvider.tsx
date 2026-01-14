@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
 import sdk from '@farcaster/frame-sdk';
+import { getAddress } from 'viem';
 
 // Define the context type based on SDK usage
 type FrameContextType = Awaited<typeof sdk.context>;
@@ -18,7 +19,7 @@ interface MiniAppContextType {
     } | null;
     authFetch: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
     actions: {
-        swapToken: (tokenAddress: string) => Promise<void>;
+        swapToken: (tokenAddress: string, chainId?: number) => Promise<void>;
         composeCast: (text: string, embeds?: string[]) => Promise<void>;
         viewProfile: (fid: number) => Promise<void>;
         addMiniApp: () => Promise<void>;
@@ -26,6 +27,14 @@ interface MiniAppContextType {
 }
 
 const MiniAppContext = createContext<MiniAppContextType | null>(null);
+const DEFAULT_SWAP_CHAIN_ID = (() => {
+    const envValue = Number(process.env.NEXT_PUBLIC_CHAIN_ID);
+    return Number.isFinite(envValue) && envValue > 0 ? envValue : 8453;
+})();
+const SWAP_CHAIN_SLUGS: Record<number, string> = {
+    8453: 'base',
+    84532: 'base-sepolia',
+};
 
 export function MiniAppProvider({ children }: { children: ReactNode }) {
     const [isReady, setIsReady] = useState(false);
@@ -74,24 +83,35 @@ export function MiniAppProvider({ children }: { children: ReactNode }) {
     }, [isInMiniApp]);
 
     const actions = {
-        swapToken: async (tokenAddress: string) => {
+        swapToken: async (tokenAddress: string, chainId?: number) => {
+            const resolvedChainId = Number.isFinite(chainId) && chainId ? chainId : DEFAULT_SWAP_CHAIN_ID;
+            const normalizedAddress = (() => {
+                try {
+                    return getAddress(tokenAddress);
+                } catch {
+                    return tokenAddress;
+                }
+            })();
+            const chainSlug = SWAP_CHAIN_SLUGS[resolvedChainId] ?? SWAP_CHAIN_SLUGS[8453];
+            const swapUrl = `https://app.uniswap.org/#/swap?outputCurrency=${normalizedAddress}&chain=${chainSlug}`;
+
             if (!isInMiniApp) {
                 // Fallback: open external swap
-                window.open(`https://app.uniswap.org/#/swap?outputCurrency=${tokenAddress}&chain=base`, '_blank');
+                window.open(swapUrl, '_blank');
                 return;
             }
             try {
-                const buyToken = `eip155:8453/erc20:${tokenAddress}`;
+                const buyToken = `eip155:${resolvedChainId}/erc20:${normalizedAddress}`;
                 const result = await sdk.actions.swapToken({ buyToken });
                 if (!result?.success) {
                     throw new Error(result?.reason || 'swapToken failed');
                 }
             } catch (error) {
                 try {
-                    await sdk.actions.openUrl(`https://app.uniswap.org/#/swap?outputCurrency=${tokenAddress}&chain=base`);
+                    await sdk.actions.openUrl(swapUrl);
                 } catch (fallbackError) {
                     console.error('swapToken/openUrl not supported:', fallbackError);
-                    window.open(`https://app.uniswap.org/#/swap?outputCurrency=${tokenAddress}&chain=base`, '_blank');
+                    window.open(swapUrl, '_blank');
                 }
             }
         },

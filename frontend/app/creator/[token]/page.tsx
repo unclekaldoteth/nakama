@@ -1,14 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { useMiniApp } from '@/lib/MiniAppProvider';
-import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { useAccount, useChainId, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { formatEther, parseEther, isAddress, zeroAddress } from 'viem';
 import { CONTRACTS, TIER_NAMES, API_BASE_URL } from '@/lib/contracts';
 import Link from 'next/link';
 import { EthosStats, CreatorEthosStats } from '@/components/EthosStats';
-import { EthosBadge, EthosVerifiedBadge, getBandFromScore, EthosBand } from '@/components/EthosBadge';
+import { EthosBadge, EthosVerifiedBadge, EthosBand } from '@/components/EthosBadge';
 import { EthosReviewModal } from '@/components/EthosReviewModal';
 import { TokenAddressInput } from '@/components/TokenAddressInput';
 import { getZoraCoin, ZoraCoinData } from '@/lib/zoraApi';
@@ -31,6 +31,7 @@ export default function CreatorPage() {
     const { token } = useParams<{ token: string }>();
     const { isReady, actions, authFetch } = useMiniApp();
     const { address, isConnected } = useAccount();
+    const chainId = useChainId();
 
     const [stakeAmount, setStakeAmount] = useState('');
     const [lockDays, setLockDays] = useState('30');
@@ -43,6 +44,7 @@ export default function CreatorPage() {
     const [pendingStake, setPendingStake] = useState<{ amount: bigint; lockDays: bigint } | null>(null);
     const [showReviewModal, setShowReviewModal] = useState(false);
     const [zoraCoin, setZoraCoin] = useState<ZoraCoinData | null>(null);
+    const lastTokenRef = useRef<string | null>(null);
 
     const parsedToken = typeof token === 'string' && isAddress(token) ? token : null;
     const tokenAddress = parsedToken ?? zeroAddress;
@@ -95,14 +97,28 @@ export default function CreatorPage() {
     // Fetch supporters from API
     useEffect(() => {
         if (tokenAddress && isValidToken) {
+            let cancelled = false;
+
+            if (lastTokenRef.current !== tokenAddress) {
+                setSupporters([]);
+                setStats(null);
+                setEthosStats(null);
+                setZoraCoin(null);
+                lastTokenRef.current = tokenAddress;
+            }
+
             fetch(`${API_BASE_URL}/creator/${tokenAddress}/supporters`)
                 .then(res => res.json())
-                .then(data => setSupporters(data.supporters || []))
+                .then(data => {
+                    if (!cancelled) setSupporters(data.supporters || []);
+                })
                 .catch(console.error);
 
             fetch(`${API_BASE_URL}/creator/${tokenAddress}/stats`)
                 .then(res => res.json())
-                .then(data => setStats(data))
+                .then(data => {
+                    if (!cancelled) setStats(data);
+                })
                 .catch(console.error);
 
             // Fetch Ethos-weighted stats
@@ -110,17 +126,27 @@ export default function CreatorPage() {
             fetch(`${API_BASE_URL}/creator/${tokenAddress}/ethos-stats`)
                 .then(res => res.json())
                 .then(data => {
-                    if (data && !data.error) {
-                        setEthosStats(data);
+                    if (!cancelled) {
+                        if (data && !data.error) {
+                            setEthosStats(data);
+                        } else {
+                            setEthosStats(null);
+                        }
                     }
                 })
                 .catch(console.error)
-                .finally(() => setEthosLoading(false));
+                .finally(() => {
+                    if (!cancelled) setEthosLoading(false);
+                });
 
             // Fetch Zora coin data for creator profile
             getZoraCoin(tokenAddress).then(data => {
-                if (data) setZoraCoin(data);
+                if (!cancelled) setZoraCoin(data);
             });
+
+            return () => {
+                cancelled = true;
+            };
         }
     }, [isValidToken, stakeSuccess, tokenAddress]);
 
@@ -138,7 +164,7 @@ export default function CreatorPage() {
 
     const handleBuy = async () => {
         if (!isValidToken || !tokenAddress) return;
-        await actions.swapToken(tokenAddress);
+        await actions.swapToken(tokenAddress, chainId);
     };
 
     const handleStake = async () => {
@@ -200,10 +226,10 @@ export default function CreatorPage() {
                 </div>
                 <div className="card" style={{ padding: '24px' }}>
                     <h3 style={{ marginBottom: '16px', color: 'var(--text-primary)' }}>
-                        � Paste Token Address
+                        Find Your Favorite Creator
                     </h3>
                     <p style={{ marginBottom: '20px', color: 'var(--text-secondary)', fontSize: '14px' }}>
-                        Copy the contract address from the creator's Base App profile.
+                        Type username Creator Coin or Copy the Contract Address from the creator's Base App profile.
                     </p>
                     <TokenAddressInput />
                 </div>
@@ -276,7 +302,11 @@ export default function CreatorPage() {
                         fontSize: '13px',
                         color: 'var(--text-secondary)'
                     }}>
-                        <span>💰 ${parseFloat(zoraCoin.marketCap).toLocaleString(undefined, { maximumFractionDigits: 0 })} mcap</span>
+                        <span>
+                            💰 ${Number.isFinite(Number(zoraCoin.marketCap))
+                                ? Number(zoraCoin.marketCap).toLocaleString(undefined, { maximumFractionDigits: 0 })
+                                : '0'} mcap
+                        </span>
                         <span>👥 {zoraCoin.uniqueHolders} holders</span>
                     </div>
                 )}

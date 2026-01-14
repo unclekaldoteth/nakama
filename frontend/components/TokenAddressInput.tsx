@@ -1,30 +1,36 @@
 /**
  * Token Address Input Component
- * Paste a contract address to navigate to creator page
- * Fetches token data from Zora API for avatar and metadata
+ * Search by creator name OR paste contract address
+ * Fetches token data from Zora API
  */
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { isAddress } from 'viem';
-import { getZoraCoin, ZoraCoinData } from '@/lib/zoraApi';
+import { getZoraCoin, searchZoraProfile, ZoraCoinData } from '@/lib/zoraApi';
 
 export function TokenAddressInput() {
     const router = useRouter();
-    const [address, setAddress] = useState('');
+    const [query, setQuery] = useState('');
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [zoraCoin, setZoraCoin] = useState<ZoraCoinData | null>(null);
+    const latestQueryRef = useRef('');
+    const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    const validAddress = isAddress(address) ? address as `0x${string}` : undefined;
+    // Detect if input is a contract address or a name search
+    const isContractAddress = isAddress(query);
 
-    // Fetch Zora coin data when valid address is entered
-    useEffect(() => {
-        if (!validAddress) {
+    // Search function with debounce
+    const performSearch = useCallback(async (searchQuery: string) => {
+        const trimmedQuery = searchQuery.trim();
+        latestQueryRef.current = trimmedQuery;
+        if (!trimmedQuery) {
             setZoraCoin(null);
             setError('');
+            setIsLoading(false);
             return;
         }
 
@@ -32,28 +38,93 @@ export function TokenAddressInput() {
         setError('');
         setZoraCoin(null);
 
-        getZoraCoin(validAddress).then(data => {
-            if (data) {
-                setZoraCoin(data);
-                setError('');
+        try {
+            if (isAddress(trimmedQuery)) {
+                // Direct contract address lookup
+                const coin = await getZoraCoin(trimmedQuery);
+                if (latestQueryRef.current !== trimmedQuery) return;
+                if (coin) {
+                    setZoraCoin(coin);
+                } else {
+                    setError('Not a valid Zora creator coin on Base');
+                }
             } else {
-                setError('Not a valid Zora creator coin on Base');
+                // Search by creator name/handle
+                const profile = await searchZoraProfile(trimmedQuery);
+                if (latestQueryRef.current !== trimmedQuery) return;
+                if (profile && profile.creatorCoinAddress) {
+                    // Found profile with creator coin - fetch full coin data
+                    const coin = await getZoraCoin(profile.creatorCoinAddress);
+                    if (latestQueryRef.current !== trimmedQuery) return;
+                    if (coin) {
+                        setZoraCoin(coin);
+                    } else {
+                        setError('Creator found but no creator coin data available');
+                    }
+                } else if (profile && !profile.creatorCoinAddress) {
+                    setError(`@${profile.handle} doesn't have a creator coin yet`);
+                } else {
+                    setError('No creator found with that username');
+                }
             }
-        }).catch(() => {
-            setError('Failed to fetch token data');
-        }).finally(() => {
-            setIsLoading(false);
-        });
-    }, [validAddress]);
+        } catch {
+            if (latestQueryRef.current === trimmedQuery) {
+                setError('Failed to fetch data');
+            }
+        } finally {
+            if (latestQueryRef.current === trimmedQuery) {
+                setIsLoading(false);
+            }
+        }
+    }, []);
 
-    const handleAddressChange = (value: string) => {
-        setAddress(value.trim());
+    // Debounced search effect
+    useEffect(() => {
+        if (searchTimeoutRef.current) {
+            clearTimeout(searchTimeoutRef.current);
+        }
+
+        const trimmedQuery = query.trim();
+        latestQueryRef.current = trimmedQuery;
+        if (!trimmedQuery) {
+            setZoraCoin(null);
+            setError('');
+            setIsLoading(false);
+            return;
+        }
+
+        // Immediate search for contract addresses
+        if (isAddress(trimmedQuery)) {
+            performSearch(trimmedQuery);
+            return;
+        }
+
+        // Debounced search for name queries (wait 500ms)
+        if (trimmedQuery.length < 2) {
+            setZoraCoin(null);
+            setError('');
+            setIsLoading(false);
+            return;
+        }
+
+        if (trimmedQuery.length >= 2) {
+            setIsLoading(true);
+            searchTimeoutRef.current = setTimeout(() => {
+                performSearch(trimmedQuery);
+            }, 500);
+        }
+
+        return () => {
+            if (searchTimeoutRef.current) {
+                clearTimeout(searchTimeoutRef.current);
+            }
+        };
+    }, [query, performSearch]);
+
+    const handleQueryChange = (value: string) => {
+        setQuery(value);
         setError('');
         setZoraCoin(null);
-
-        if (value.trim() && !isAddress(value.trim())) {
-            setError('Invalid address format');
-        }
     };
 
     const handleNavigate = () => {
@@ -68,16 +139,16 @@ export function TokenAddressInput() {
             <div>
                 <input
                     type="text"
-                    placeholder="Paste contract address (0x...)"
-                    value={address}
-                    onChange={(e) => handleAddressChange(e.target.value)}
+                    placeholder="Search by username or paste address..."
+                    value={query}
+                    onChange={(e) => handleQueryChange(e.target.value)}
                     className="form-input"
-                    style={{ fontFamily: 'monospace' }}
+                    style={{ fontFamily: isContractAddress ? 'monospace' : 'inherit' }}
                 />
             </div>
 
             {/* Loading State */}
-            {isLoading && validAddress && (
+            {isLoading && (
                 <div style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -89,13 +160,13 @@ export function TokenAddressInput() {
                 }}>
                     <div className="spinner" style={{ width: '20px', height: '20px', borderWidth: '2px' }}></div>
                     <span style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
-                        Fetching token data from Zora...
+                        {isContractAddress ? 'Looking up token...' : 'Searching creators...'}
                     </span>
                 </div>
             )}
 
             {/* Error State */}
-            {error && (
+            {error && !isLoading && (
                 <div style={{
                     padding: '14px 16px',
                     background: 'rgba(239, 68, 68, 0.1)',
@@ -112,7 +183,7 @@ export function TokenAddressInput() {
                 </div>
             )}
 
-            {/* Token Found - Success State with Zora Data */}
+            {/* Token Found - Success State */}
             {zoraCoin && (
                 <div style={{
                     display: 'flex',
@@ -158,7 +229,7 @@ export function TokenAddressInput() {
                                     fontWeight: 'bold',
                                     color: 'white'
                                 }}>
-                                    {zoraCoin.symbol[0]}
+                                    {zoraCoin.symbol?.[0] || zoraCoin.name?.[0] || '?'}
                                 </div>
                             )}
                             <div style={{ flex: 1 }}>
@@ -197,7 +268,11 @@ export function TokenAddressInput() {
                             fontSize: '12px',
                             color: 'var(--text-muted)'
                         }}>
-                            <span>💰 ${parseFloat(zoraCoin.marketCap).toLocaleString(undefined, { maximumFractionDigits: 0 })} mcap</span>
+                            <span>
+                                💰 ${Number.isFinite(Number(zoraCoin.marketCap))
+                                    ? Number(zoraCoin.marketCap).toLocaleString(undefined, { maximumFractionDigits: 0 })
+                                    : '0'} mcap
+                            </span>
                             <span>👥 {zoraCoin.uniqueHolders} holders</span>
                         </div>
 
@@ -226,7 +301,7 @@ export function TokenAddressInput() {
             )}
 
             {/* Help Text */}
-            {!address && (
+            {!query && (
                 <div style={{
                     padding: '16px',
                     background: 'var(--surface)',
@@ -238,20 +313,18 @@ export function TokenAddressInput() {
                         color: 'var(--text-secondary)',
                         marginBottom: '12px'
                     }}>
-                        <strong style={{ color: 'var(--text-primary)' }}>How to find a creator coin address:</strong>
+                        <strong style={{ color: 'var(--text-primary)' }}>Find a creator:</strong>
                     </div>
-                    <ol style={{
+                    <ul style={{
                         margin: 0,
                         paddingLeft: '20px',
                         fontSize: '13px',
                         color: 'var(--text-secondary)',
-                        lineHeight: 1.6
+                        lineHeight: 1.8
                     }}>
-                        <li>Open the creator's profile in Zora or Base App</li>
-                        <li>Tap on their creator coin</li>
-                        <li>Copy the contract address</li>
-                        <li>Paste it above</li>
-                    </ol>
+                        <li><strong>By username:</strong> Type their Zora username (e.g. "fabiokalandra")</li>
+                        <li><strong>By address:</strong> Paste their token contract address</li>
+                    </ul>
                 </div>
             )}
         </div>
