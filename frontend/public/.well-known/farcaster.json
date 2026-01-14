@@ -1,17 +1,17 @@
 {
   "accountAssociation": {
-    "header": "",
-    "payload": "",
-    "signature": ""
+    "header": "eyJmaWQiOjQ1NjU4NSwidHlwZSI6ImN1c3RvZHkiLCJrZXkiOiIweDdGNzc4MzBkOTk1RTFiQmE3NkQwMmI0NUJjOGFDNzA1QzMyOTI3MjcifQ",
+    "payload": "eyJkb21haW4iOiJuYWthbWEtY29udmljdGlvbi52ZXJjZWwuYXBwIn0",
+    "signature": "9muRgUakePX/v04r6KrHzuM0OFRXk6BATKaQ+tOykJwNM7qBMnubv9R42/JzujYGP89dwNoypM+t7CoicPeTOBw="
   },
   "miniapp": {
     "version": "1",
-    "name": "Conviction Vault",
-    "homeUrl": "https://conviction-vault.vercel.app",
-    "iconUrl": "https://conviction-vault.vercel.app/miniapp-icon.svg",
-    "imageUrl": "https://conviction-vault.vercel.app/og-image.svg",
-    "buttonTitle": "Open Conviction Vault",
-    "splashImageUrl": "https://conviction-vault.vercel.app/miniapp-icon.svg",
+    "name": "Nakama",
+    "homeUrl": "https://nakama-conviction.vercel.app",
+    "iconUrl": "https://nakama-conviction.vercel.app/miniapp-icon.svg",
+    "imageUrl": "https://nakama-conviction.vercel.app/og-image.svg",
+    "buttonTitle": "Open Nakama",
+    "splashImageUrl": "https://nakama-conviction.vercel.app/miniapp-icon.svg",
     "splashBackgroundColor": "#0b1220"
   }
 }
