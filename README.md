@@ -14,6 +14,7 @@ The core mechanic involves supporters buying creator coins, staking them to demo
 - **Gated Content**: Creators can restrict content access based on supporter tier
 - **Leaderboards**: Track top supporters by conviction score (sqrt of staked amount)
 - **Ethos Network Integration**: Credibility scores, on-chain reviews, and reputation-weighted supporter metrics
+- **Creator Tier Configuration**: Creators can customize min stake amounts and min ethos scores per tier
 - **Creator Coin Discovery**: Search and select creator coins via Clanker API integration
 - **Premium Dark UI**: Modern glassmorphism design with smooth animations
 
@@ -28,12 +29,12 @@ nakama/
 
 ## Smart Contracts
 
-Deployed on Base Sepolia testnet:
+Deployed on Base Mainnet:
 
 | Contract | Address | Description |
 |----------|---------|-------------|
-| ConvictionVault | `0x805daf87844E78fE86Bc0DfaBf5a6A6F4E24d218` | Universal staking vault for ERC-20 tokens |
-| ConvictionBadge | `0x810BFa0A3aEa3aF7187a853A75f9827bD213f5b4` | Soulbound NFT badges with on-chain SVG |
+| ConvictionVault | `0x457b617E9b63cED88d630761e9690e4207F7f798` | Universal staking vault for ERC-20 tokens |
+| ConvictionBadge | `0x55f56C46B86fE3961cC51b4ca72CCfBFa4F760Ce` | Soulbound NFT badges with on-chain SVG |
 
 ### Contract Features
 
@@ -74,8 +75,8 @@ Deployed on Base Sepolia testnet:
 
 - Node.js 18+
 - PostgreSQL (for backend)
-- A Base Sepolia RPC URL
-- A deployer private key with Base Sepolia ETH
+- A Base RPC URL
+- A deployer private key with Base ETH
 
 ### Installation
 
@@ -154,16 +155,18 @@ DATABASE_URL=postgresql://user:password@localhost:5432/nakama
 FRONTEND_URL=http://localhost:3000
 BASE_RPC_URL=https://mainnet.base.org
 BASE_SEPOLIA_RPC_URL=https://sepolia.base.org
-VAULT_ADDRESS=0x805daf87844E78fE86Bc0DfaBf5a6A6F4E24d218
-BADGE_ADDRESS=0x810BFa0A3aEa3aF7187a853A75f9827bD213f5b4
+VAULT_ADDRESS=0x457b617E9b63cED88d630761e9690e4207F7f798
+BADGE_ADDRESS=0x55f56C46B86fE3961cC51b4ca72CCfBFa4F760Ce
 ```
 
 ## API Endpoints
 
 ### Creator Routes
-- `GET /api/creator/:token/supporters` - Get supporters list with Ethos scores
-- `GET /api/creator/:token/stats` - Get creator stats including credibility metrics
+- `GET /api/creator/:token/supporters` - Get supporters list with effective tiers
+- `GET /api/creator/:token/stats` - Get creator stats with effective tier counts
 - `GET /api/creator/:token/allowlist` - Get tier-based allowlist
+- `GET /api/creator/:token/config` - Get tier configuration for a token
+- `PUT /api/creator/:token/config` - Update tier configuration (requires auth)
 - `POST /api/creator/:token/gated` - Create gated content (requires auth)
 
 ### User Routes
@@ -184,12 +187,17 @@ BADGE_ADDRESS=0x810BFa0A3aEa3aF7187a853A75f9827bD213f5b4
 
 ## Tier System
 
-| Tier | Lock Duration | Color |
-|------|---------------|-------|
-| Bronze | Any stake | #CD7F32 |
-| Silver | 7+ days | #C0C0C0 |
-| Gold | 30+ days | #FFD700 |
-| Legend | 90+ days | #9333EA |
+Tiers are determined by the **minimum** of three factors:
+1. **Lock Duration** (on-chain): 7d=Silver, 30d=Gold, 90d=Legend
+2. **Min Stake Amount** (creator-configurable): e.g., 10 tokens for Silver
+3. **Min Ethos Score** (creator-configurable): e.g., 1400 for Gold
+
+| Tier | Default Lock | Default Min Stake | Default Min Ethos | Color |
+|------|--------------|-------------------|-------------------|-------|
+| Bronze | Any stake | 0 | 0 | #CD7F32 |
+| Silver | 7+ days | 1 token | 1200 | #C0C0C0 |
+| Gold | 30+ days | 10 tokens | 1400 | #FFD700 |
+| Legend | 90+ days | 100 tokens | 1600 | #9333EA |
 
 ## Testing
 
@@ -222,12 +230,19 @@ npm test
 - Reentrancy guard on all state-changing functions
 - Time-locked staking prevents quick exits
 - Quick Auth for authenticated creator actions
+- Creator tier configs are locked to original creator FID
 
 ## License
 
 MIT
 
 ## Recent Updates
+
+### v1.2.0 - Creator Tier Configuration & Base Mainnet
+- **Base Mainnet Deployment**: Contracts now live on Base mainnet
+- **Creator Tier Configuration**: Creators can set custom min stake and min ethos thresholds per tier
+- **Effective Tier Calculation**: Tiers now factor in stake amount + ethos score + lock duration
+- **Creator Settings UI**: New `/creator-settings` page for tier configuration
 
 ### v1.1.0 - Ethos Integration & UI Revamp
 - **Ethos Network**: Integrated credibility scores, on-chain reviews via EthosReview contract
@@ -237,5 +252,6 @@ MIT
 
 ## Links
 
-- [BaseScan - ConvictionVault](https://sepolia.basescan.org/address/0x805daf87844E78fE86Bc0DfaBf5a6A6F4E24d218#code)
-- [BaseScan - ConvictionBadge](https://sepolia.basescan.org/address/0x810BFa0A3aEa3aF7187a853A75f9827bD213f5b4#code)
+- [BaseScan - ConvictionVault](https://basescan.org/address/0x457b617E9b63cED88d630761e9690e4207F7f798#code)
+- [BaseScan - ConvictionBadge](https://basescan.org/address/0x55f56C46B86fE3961cC51b4ca72CCfBFa4F760Ce#code)
+

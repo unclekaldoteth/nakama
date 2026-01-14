@@ -4,9 +4,38 @@ import { pool } from '../index';
 import { requireQuickAuth } from '../auth/quickAuth';
 import { EthosClient, buildUserkey } from '../services/ethosClient';
 import { calculateCreatorStats, Position } from '../services/credibilityCalc';
+import { GLOBAL_DEFAULTS, TierConfig, rowToTierConfig, getStakeBasedTier, getEthosBasedTier } from '../services/tierCalculator';
 
 const router = Router();
 const ethosClient = new EthosClient(pool);
+const DEFAULT_ETHOS_SCORE = 1200;
+
+async function getTierConfigForToken(token: string): Promise<TierConfig> {
+    const configResult = await pool.query(
+        `SELECT * FROM creator_tier_config WHERE LOWER(token_address) = LOWER($1)`,
+        [token]
+    );
+
+    if (configResult.rows.length > 0) {
+        return rowToTierConfig(configResult.rows[0]);
+    }
+
+    const defaultsResult = await pool.query(
+        `SELECT * FROM global_tier_defaults WHERE id = 1`
+    );
+
+    if (defaultsResult.rows.length > 0) {
+        return rowToTierConfig(defaultsResult.rows[0]);
+    }
+
+    return GLOBAL_DEFAULTS;
+}
+
+function computeEffectiveTier(lockTier: number, stakeAmount: string, ethosScore: number, config: TierConfig): number {
+    const stakeTier = getStakeBasedTier(stakeAmount, config);
+    const ethosTier = getEthosBasedTier(ethosScore, config);
+    return Math.min(lockTier, stakeTier, ethosTier);
+}
 
 /**
  * GET /api/creator/:token/supporters
@@ -44,6 +73,7 @@ router.get('/:token/supporters', async (req: Request, res: Response) => {
         );
 
         const supporterRows = result.rows;
+        const tierConfig = await getTierConfigForToken(token);
         const userkeys = supporterRows
             .map(row => buildUserkey(undefined, row.user_address))
             .filter(Boolean) as string[];
@@ -57,11 +87,15 @@ router.get('/:token/supporters', async (req: Request, res: Response) => {
                 const userkey = buildUserkey(undefined, row.user_address);
                 const ethosProfile = userkey ? ethosProfiles.get(userkey) : null;
 
+                const lockTier = Number(row.tier) || 0;
+                const ethosScoreForTier = ethosProfile?.score ?? DEFAULT_ETHOS_SCORE;
+                const effectiveTier = computeEffectiveTier(lockTier, row.amount, ethosScoreForTier, tierConfig);
+
                 return {
                     address: row.user_address,
                     amount: row.amount,
                     lockEnd: row.lock_end,
-                    tier: row.tier,
+                    tier: effectiveTier,
                     convictionScore: row.conviction_score,
                     ethosScore: ethosProfile?.score,
                     ethosBand: ethosProfile?.band,
@@ -91,36 +125,64 @@ router.get('/:token/stats', async (req: Request, res: Response) => {
     try {
         const { token } = req.params;
 
-        const stats = await pool.query(
+        const positionsResult = await pool.query(
             `SELECT 
-        COUNT(*) as total_supporters,
-        COUNT(CASE WHEN tier >= 1 THEN 1 END) as bronze_count,
-        COUNT(CASE WHEN tier >= 2 THEN 1 END) as silver_count,
-        COUNT(CASE WHEN tier >= 3 THEN 1 END) as gold_count,
-        COUNT(CASE WHEN tier >= 4 THEN 1 END) as legend_count,
-        COALESCE(SUM(amount), 0) as total_staked
+        user_address,
+        amount,
+        tier,
+        created_at
       FROM positions
       WHERE LOWER(token_address) = LOWER($1) AND amount > 0`,
             [token]
         );
 
-        // New this week
-        const newThisWeek = await pool.query(
-            `SELECT COUNT(*) as count FROM positions
-      WHERE LOWER(token_address) = LOWER($1) 
-      AND created_at >= NOW() - INTERVAL '7 days'
-      AND amount > 0`,
-            [token]
-        );
+        const rows = positionsResult.rows;
+        const totalSupporters = rows.length;
+        let bronzeCount = 0;
+        let silverCount = 0;
+        let goldCount = 0;
+        let legendCount = 0;
+        let totalStaked = BigInt(0);
+        const now = Date.now();
+        const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
+        let newThisWeek = 0;
+
+        const tierConfig = await getTierConfigForToken(token);
+        const userkeys = rows
+            .map(row => buildUserkey(undefined, row.user_address))
+            .filter(Boolean) as string[];
+        const uniqueUserkeys = Array.from(new Set(userkeys));
+        const ethosProfiles = uniqueUserkeys.length > 0
+            ? await ethosClient.bulkLookup(uniqueUserkeys)
+            : new Map();
+
+        for (const row of rows) {
+            totalStaked += BigInt(row.amount || '0');
+            const createdAt = new Date(row.created_at).getTime();
+            if (!Number.isNaN(createdAt) && createdAt >= weekAgo) {
+                newThisWeek += 1;
+            }
+
+            const userkey = buildUserkey(undefined, row.user_address);
+            const ethosProfile = userkey ? ethosProfiles.get(userkey) : null;
+            const lockTier = Number(row.tier) || 0;
+            const ethosScoreForTier = ethosProfile?.score ?? DEFAULT_ETHOS_SCORE;
+            const effectiveTier = computeEffectiveTier(lockTier, row.amount, ethosScoreForTier, tierConfig);
+
+            if (effectiveTier >= 1) bronzeCount += 1;
+            if (effectiveTier >= 2) silverCount += 1;
+            if (effectiveTier >= 3) goldCount += 1;
+            if (effectiveTier >= 4) legendCount += 1;
+        }
 
         res.json({
-            totalSupporters: parseInt(stats.rows[0].total_supporters),
-            bronzeCount: parseInt(stats.rows[0].bronze_count),
-            silverCount: parseInt(stats.rows[0].silver_count),
-            goldCount: parseInt(stats.rows[0].gold_count),
-            legendCount: parseInt(stats.rows[0].legend_count),
-            totalStaked: stats.rows[0].total_staked,
-            newThisWeek: parseInt(newThisWeek.rows[0].count),
+            totalSupporters,
+            bronzeCount,
+            silverCount,
+            goldCount,
+            legendCount,
+            totalStaked: totalStaked.toString(),
+            newThisWeek,
         });
     } catch (error) {
         console.error('Error fetching stats:', error);
@@ -195,20 +257,49 @@ router.get('/:token/allowlist', requireQuickAuth, async (req: Request, res: Resp
         }
 
         const result = await pool.query(
-            `SELECT user_address, tier FROM positions
-      WHERE LOWER(token_address) = LOWER($1) 
-      AND tier >= $2 
-      AND amount > 0
-      ORDER BY tier DESC, conviction_score DESC`,
-            [token, minTier]
+            `SELECT user_address, amount, tier, conviction_score FROM positions
+      WHERE LOWER(token_address) = LOWER($1)
+      AND amount > 0`,
+            [token]
         );
 
-        res.json({
-            addresses: result.rows.map(row => ({
+        const tierConfig = await getTierConfigForToken(token);
+        const userkeys = result.rows
+            .map(row => buildUserkey(undefined, row.user_address))
+            .filter(Boolean) as string[];
+        const uniqueUserkeys = Array.from(new Set(userkeys));
+        const ethosProfiles = uniqueUserkeys.length > 0
+            ? await ethosClient.bulkLookup(uniqueUserkeys)
+            : new Map();
+
+        const addresses = result.rows.map(row => {
+            const userkey = buildUserkey(undefined, row.user_address);
+            const ethosProfile = userkey ? ethosProfiles.get(userkey) : null;
+            const lockTier = Number(row.tier) || 0;
+            const ethosScoreForTier = ethosProfile?.score ?? DEFAULT_ETHOS_SCORE;
+            const effectiveTier = computeEffectiveTier(lockTier, row.amount, ethosScoreForTier, tierConfig);
+
+            return {
                 address: row.user_address,
+                tier: effectiveTier,
+                convictionScore: row.conviction_score,
+            };
+        }).filter(row => row.tier >= minTier);
+
+        addresses.sort((a, b) => {
+            if (b.tier !== a.tier) return b.tier - a.tier;
+            const aScore = BigInt(a.convictionScore || '0');
+            const bScore = BigInt(b.convictionScore || '0');
+            if (aScore === bScore) return 0;
+            return aScore > bScore ? -1 : 1;
+        });
+
+        res.json({
+            addresses: addresses.map(row => ({
+                address: row.address,
                 tier: row.tier,
             })),
-            total: result.rows.length,
+            total: addresses.length,
             minTier,
         });
     } catch (error) {
@@ -250,6 +341,173 @@ router.post('/:token/gated-content', requireQuickAuth, async (req: Request, res:
     } catch (error) {
         console.error('Error creating gated content:', error);
         res.status(500).json({ error: 'Failed to create gated content' });
+    }
+});
+
+/**
+ * GET /api/creator/:token/config
+ * Get tier configuration for a creator token
+ * Returns creator-specific config or global defaults
+ */
+router.get('/:token/config', async (req: Request, res: Response) => {
+    try {
+        const { token } = req.params;
+
+        // Try to get creator-specific config
+        const configResult = await pool.query(
+            `SELECT * FROM creator_tier_config WHERE LOWER(token_address) = LOWER($1)`,
+            [token]
+        );
+
+        if (configResult.rows.length > 0) {
+            const row = configResult.rows[0];
+            return res.json({
+                isCustom: true,
+                creatorFid: row.creator_fid,
+                config: {
+                    minStakeBronze: row.min_stake_bronze?.toString() || '0',
+                    minStakeSilver: row.min_stake_silver?.toString() || '0',
+                    minStakeGold: row.min_stake_gold?.toString() || '0',
+                    minStakeLegend: row.min_stake_legend?.toString() || '0',
+                    minEthosBronze: parseInt(row.min_ethos_bronze) || 0,
+                    minEthosSilver: parseInt(row.min_ethos_silver) || 0,
+                    minEthosGold: parseInt(row.min_ethos_gold) || 0,
+                    minEthosLegend: parseInt(row.min_ethos_legend) || 0,
+                },
+            });
+        }
+
+        // Return global defaults
+        const defaultsResult = await pool.query(
+            `SELECT * FROM global_tier_defaults WHERE id = 1`
+        );
+
+        if (defaultsResult.rows.length > 0) {
+            const row = defaultsResult.rows[0];
+            return res.json({
+                isCustom: false,
+                config: {
+                    minStakeBronze: row.min_stake_bronze?.toString() || '0',
+                    minStakeSilver: row.min_stake_silver?.toString() || '0',
+                    minStakeGold: row.min_stake_gold?.toString() || '0',
+                    minStakeLegend: row.min_stake_legend?.toString() || '0',
+                    minEthosBronze: parseInt(row.min_ethos_bronze) || 0,
+                    minEthosSilver: parseInt(row.min_ethos_silver) || 0,
+                    minEthosGold: parseInt(row.min_ethos_gold) || 0,
+                    minEthosLegend: parseInt(row.min_ethos_legend) || 0,
+                },
+            });
+        }
+
+        // Hardcoded fallback defaults
+        res.json({
+            isCustom: false,
+            config: {
+                minStakeBronze: '0',
+                minStakeSilver: '1000000000000000000',
+                minStakeGold: '10000000000000000000',
+                minStakeLegend: '100000000000000000000',
+                minEthosBronze: 0,
+                minEthosSilver: 1200,
+                minEthosGold: 1400,
+                minEthosLegend: 1600,
+            },
+        });
+    } catch (error) {
+        console.error('Error fetching tier config:', error);
+        res.status(500).json({ error: 'Failed to fetch tier config' });
+    }
+});
+
+/**
+ * PUT /api/creator/:token/config
+ * Update tier configuration for a creator token
+ * Requires Quick Auth (creator verification via Farcaster FID)
+ */
+router.put('/:token/config', requireQuickAuth, async (req: Request, res: Response) => {
+    try {
+        const { token } = req.params;
+        const creatorFid = req.quickAuth?.fid;
+
+        if (!creatorFid) {
+            return res.status(401).json({ error: 'Authentication required' });
+        }
+
+        const {
+            minStakeBronze,
+            minStakeSilver,
+            minStakeGold,
+            minStakeLegend,
+            minEthosBronze,
+            minEthosSilver,
+            minEthosGold,
+            minEthosLegend,
+        } = req.body;
+
+        // Check if config already exists
+        const existingConfig = await pool.query(
+            `SELECT creator_fid FROM creator_tier_config WHERE LOWER(token_address) = LOWER($1)`,
+            [token]
+        );
+
+        if (existingConfig.rows.length > 0) {
+            // Verify ownership - only original creator can update
+            if (String(existingConfig.rows[0].creator_fid) !== String(creatorFid)) {
+                return res.status(403).json({ error: 'Only the original creator can update this config' });
+            }
+
+            // Update existing config
+            await pool.query(
+                `UPDATE creator_tier_config SET
+                    min_stake_bronze = $1,
+                    min_stake_silver = $2,
+                    min_stake_gold = $3,
+                    min_stake_legend = $4,
+                    min_ethos_bronze = $5,
+                    min_ethos_silver = $6,
+                    min_ethos_gold = $7,
+                    min_ethos_legend = $8,
+                    updated_at = NOW()
+                WHERE LOWER(token_address) = LOWER($9)`,
+                [
+                    minStakeBronze || '0',
+                    minStakeSilver || '0',
+                    minStakeGold || '0',
+                    minStakeLegend || '0',
+                    minEthosBronze || 0,
+                    minEthosSilver || 0,
+                    minEthosGold || 0,
+                    minEthosLegend || 0,
+                    token,
+                ]
+            );
+        } else {
+            // Insert new config
+            await pool.query(
+                `INSERT INTO creator_tier_config (
+                    token_address, creator_fid,
+                    min_stake_bronze, min_stake_silver, min_stake_gold, min_stake_legend,
+                    min_ethos_bronze, min_ethos_silver, min_ethos_gold, min_ethos_legend
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+                [
+                    (token as string).toLowerCase(),
+                    creatorFid,
+                    minStakeBronze || '0',
+                    minStakeSilver || '0',
+                    minStakeGold || '0',
+                    minStakeLegend || '0',
+                    minEthosBronze || 0,
+                    minEthosSilver || 0,
+                    minEthosGold || 0,
+                    minEthosLegend || 0,
+                ]
+            );
+        }
+
+        res.json({ success: true, message: 'Tier configuration updated' });
+    } catch (error) {
+        console.error('Error updating tier config:', error);
+        res.status(500).json({ error: 'Failed to update tier config' });
     }
 });
 

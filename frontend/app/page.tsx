@@ -101,6 +101,27 @@ export default function HomePage() {
             </div>
           </div>
         </Link>
+
+        <Link href="/creator-settings" className="card" style={{ display: 'block' }}>
+          <div className="card-header">
+            <div style={{
+              width: 48,
+              height: 48,
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, #9B59B6 0%, #8E44AD 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '24px'
+            }}>
+              ⚙️
+            </div>
+            <div>
+              <div className="card-title">Creator Settings</div>
+              <div className="card-subtitle">Configure tier requirements for your supporters</div>
+            </div>
+          </div>
+        </Link>
       </div>
 
       {/* How It Works */}
