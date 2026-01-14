@@ -32,12 +32,12 @@ export function TokenAddressInput() {
 
     const validAddress = isAddress(address) ? address as `0x${string}` : undefined;
 
-    // Read ERC20 metadata on-chain
+    // Read ERC20 metadata on-chain (Base mainnet)
     const { data, isLoading, isError } = useReadContracts({
         contracts: validAddress ? [
-            { address: validAddress, abi: erc20Abi, functionName: 'name' },
-            { address: validAddress, abi: erc20Abi, functionName: 'symbol' },
-            { address: validAddress, abi: erc20Abi, functionName: 'decimals' },
+            { address: validAddress, abi: erc20Abi, functionName: 'name', chainId: 8453 },
+            { address: validAddress, abi: erc20Abi, functionName: 'symbol', chainId: 8453 },
+            { address: validAddress, abi: erc20Abi, functionName: 'decimals', chainId: 8453 },
         ] : [],
         query: { enabled: !!validAddress }
     });
