@@ -10,7 +10,7 @@ import Link from 'next/link';
 
 export default function HomePage() {
   const router = useRouter();
-  const { isReady, user } = useMiniApp();
+  const { isReady, user, isInMiniApp } = useMiniApp();
   const { address, isConnected } = useAccount();
   const {
     hasOnboarded,
