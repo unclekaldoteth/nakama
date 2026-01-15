@@ -9,6 +9,7 @@
   "scripts": {
     "compile": "npx hardhat compile",
     "test": "npx hardhat test test/*.test.ts",
+    "deploy:badge": "npx hardhat run scripts/deployBadge.ts --network base",
     "deploy:sepolia": "npx hardhat run scripts/deploy.js --network baseSepolia",
     "deploy:mainnet": "npx hardhat run scripts/deploy.js --network base"
   },

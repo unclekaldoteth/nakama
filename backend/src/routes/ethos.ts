@@ -7,6 +7,7 @@ import { Router, Request, Response } from 'express';
 import { pool } from '../index';
 import { EthosClient, buildUserkey, EthosWriteRequest } from '../services/ethosClient';
 import { optionalQuickAuth, requireQuickAuth } from '../auth/quickAuth';
+import { resolveUserAddress } from '../utils/resolveUserAddress';
 
 const router = Router();
 const ethosClient = new EthosClient(pool);
@@ -165,10 +166,16 @@ router.post('/review', requireQuickAuth, async (req: Request, res: Response) => 
 
         // Get writer info from Quick Auth
         const writerFid = req.user?.fid;
-        const writerAddress = req.user?.address;
+        const writerAddress = await resolveUserAddress(req, pool);
 
         if (!writerFid && !writerAddress) {
             return res.status(401).json({ error: 'Authentication required' });
+        }
+        if (!writerAddress) {
+            return res.status(400).json({
+                error: 'Wallet address required',
+                message: 'Connect a wallet to verify your Nakama tier.',
+            });
         }
 
         const writerUserkey = buildUserkey(writerFid, writerAddress);
@@ -188,20 +195,18 @@ router.post('/review', requireQuickAuth, async (req: Request, res: Response) => 
         }
 
         // Check writer's Nakama tier (must have staked)
-        if (writerAddress) {
-            const positionResult = await pool.query(
-                `SELECT tier FROM positions WHERE LOWER(user_address) = LOWER($1) LIMIT 1`,
-                [writerAddress]
-            );
-            const writerTier = positionResult.rows[0]?.tier || 0;
+        const positionResult = await pool.query(
+            `SELECT tier FROM positions WHERE LOWER(user_address) = LOWER($1) LIMIT 1`,
+            [writerAddress]
+        );
+        const writerTier = positionResult.rows[0]?.tier || 0;
 
-            if (writerTier < MIN_WRITE_TIER) {
-                return res.status(403).json({
-                    error: 'Nakama commitment required',
-                    message: 'You need at least Bronze tier (stake any creator coin) to write reviews.',
-                    currentTier: writerTier,
-                });
-            }
+        if (writerTier < MIN_WRITE_TIER) {
+            return res.status(403).json({
+                error: 'Nakama commitment required',
+                message: 'You need at least Bronze tier (stake any creator coin) to write reviews.',
+                currentTier: writerTier,
+            });
         }
 
         // Check rate limit (3 reviews/day)

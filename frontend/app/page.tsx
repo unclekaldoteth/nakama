@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAccount } from 'wagmi';
 import { useMiniApp } from '@/lib/MiniAppProvider';
@@ -25,30 +25,8 @@ export default function HomePage() {
 
   const [isCheckingCreator, setIsCheckingCreator] = useState(false);
 
-  // Handle routing based on onboarding state
-  useEffect(() => {
-    if (onboardingLoading || !isReady) return;
-
-    // First-time user: go to onboarding
-    if (!hasOnboarded) {
-      router.replace('/onboarding');
-      return;
-    }
-
-    if (!selectedRole) {
-      router.replace('/select-role');
-      return;
-    }
-
-    // Returning user: check if they should be redirected to creator home
-    // Only check if they selected creator role, or if we should auto-detect
-    if (selectedRole === 'creator' && isConnected && address && shouldCheckCreator()) {
-      handleCreatorCheck();
-    }
-  }, [hasOnboarded, selectedRole, onboardingLoading, isReady, isConnected, address]);
-
-  async function handleCreatorCheck() {
-    if (isCheckingCreator || !address) return;
+  const handleCreatorCheck = useCallback(async () => {
+    if (!address) return;
 
     setIsCheckingCreator(true);
     try {
@@ -61,9 +39,45 @@ export default function HomePage() {
       }
     } catch (error) {
       console.error('Creator check failed:', error);
+    } finally {
+      setIsCheckingCreator(false);
     }
-    setIsCheckingCreator(false);
-  }
+  }, [address, router, setDetectedCreatorToken, updateLastCreatorCheck]);
+
+  // Handle routing based on onboarding state
+  useEffect(() => {
+    if (onboardingLoading || !isReady) return;
+
+    // First-time user: go to onboarding
+    if (!hasOnboarded) {
+      router.replace('/onboarding');
+      return;
+    }
+
+    if (!selectedRole) {
+      router.replace('/select-role');
+    }
+  }, [hasOnboarded, selectedRole, onboardingLoading, isReady, router]);
+
+  // Returning user: check if they should be redirected to creator home
+  useEffect(() => {
+    if (onboardingLoading || !isReady) return;
+    if (selectedRole !== 'creator') return;
+    if (!isConnected || !address) return;
+    if (isCheckingCreator) return;
+    if (!shouldCheckCreator()) return;
+
+    void handleCreatorCheck();
+  }, [
+    onboardingLoading,
+    isReady,
+    selectedRole,
+    isConnected,
+    address,
+    isCheckingCreator,
+    shouldCheckCreator,
+    handleCreatorCheck,
+  ]);
 
   // Show loading while checking onboarding state
   if (!isReady || onboardingLoading || isCheckingCreator) {
@@ -88,17 +102,17 @@ export default function HomePage() {
             The best assets on Base
           </p>
         </div>
-        {user && (
+        {user ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            {user.pfpUrl && (
+            {user.pfpUrl ? (
               <img
                 src={user.pfpUrl}
                 alt={user.displayName || ''}
                 style={{ width: 36, height: 36, borderRadius: '50%' }}
               />
-            )}
+            ) : null}
           </div>
-        )}
+        ) : null}
       </div>
 
       {/* Hero - Hybrid Message */}
@@ -258,7 +272,7 @@ export default function HomePage() {
         </div>
 
         {/* Show Creator Home link for users who selected creator role */}
-        {selectedRole === 'creator' && (
+        {selectedRole === 'creator' ? (
           <Link href="/creator-home" className="card" style={{
             display: 'flex',
             alignItems: 'center',
@@ -284,7 +298,7 @@ export default function HomePage() {
               </div>
             </div>
           </Link>
-        )}
+        ) : null}
       </div>
 
       {/* Top Traders Section */}

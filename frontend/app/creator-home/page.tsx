@@ -57,6 +57,8 @@ export default function CreatorHomePage() {
         bronze: 0,
     });
 
+    const tokenAddress = detectedCreatorToken || profile?.creatorCoinAddress || null;
+
     useEffect(() => {
         async function detectCreator() {
             if (!isConnected || !address) {
@@ -91,49 +93,6 @@ export default function CreatorHomePage() {
 
         detectCreator();
     }, [address, isConnected, router, setDetectedCreatorToken, updateLastCreatorCheck]);
-
-    if (isLoading) {
-        return (
-            <div className="creator-home-container">
-                <div className="loading-state">
-                    <div className="loading-spinner"></div>
-                    <p>Loading your creator profile...</p>
-                </div>
-            </div>
-        );
-    }
-
-    if (!isConnected) {
-        return (
-            <div className="creator-home-container">
-                <div className="empty-state">
-                    <div className="empty-icon">🔗</div>
-                    <h2>Connect Wallet</h2>
-                    <p>Connect your wallet to view your creator dashboard</p>
-                </div>
-            </div>
-        );
-    }
-
-    if (error) {
-        return (
-            <div className="creator-home-container">
-                <div className="empty-state">
-                    <div className="empty-icon">⚠️</div>
-                    <h2>Unable to load creator profile</h2>
-                    <p>{error}</p>
-                    <button className="action-card" onClick={() => window.location.reload()}>
-                        Retry
-                    </button>
-                    <Link href="/" className="switch-link" style={{ marginTop: '12px' }}>
-                        Back to Home →
-                    </Link>
-                </div>
-            </div>
-        );
-    }
-
-    const tokenAddress = detectedCreatorToken || profile?.creatorCoinAddress || null;
 
     useEffect(() => {
         if (!tokenAddress) return;
@@ -255,6 +214,47 @@ export default function CreatorHomePage() {
     const handleRefresh = () => {
         setRefreshNonce(prev => prev + 1);
     };
+
+    if (isLoading) {
+        return (
+            <div className="creator-home-container">
+                <div className="loading-state">
+                    <div className="loading-spinner"></div>
+                    <p>Loading your creator profile...</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (!isConnected) {
+        return (
+            <div className="creator-home-container">
+                <div className="empty-state">
+                    <div className="empty-icon">🔗</div>
+                    <h2>Connect Wallet</h2>
+                    <p>Connect your wallet to view your creator dashboard</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="creator-home-container">
+                <div className="empty-state">
+                    <div className="empty-icon">⚠️</div>
+                    <h2>Unable to load creator profile</h2>
+                    <p>{error}</p>
+                    <button className="action-card" onClick={() => window.location.reload()}>
+                        Retry
+                    </button>
+                    <Link href="/" className="switch-link" style={{ marginTop: '12px' }}>
+                        Back to Home →
+                    </Link>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="creator-home-container">

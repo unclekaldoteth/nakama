@@ -261,6 +261,7 @@ MIT
 - **Copy Trading Preview**: Copy-trade buttons and feature teaser
 - **Multi-API Integration**: DexScreener for price data, Zora for creator coins
 - **Finance-First UX**: Aligned with Jesse Pollak's Base app direction
+- **Performance**: Optimized rendering and token deduplication
 
 ### v1.3.0 - New App Flow & Role-Based Navigation
 - **Onboarding Carousel**: 3-slide introduction for first-time users

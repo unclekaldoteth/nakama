@@ -80,8 +80,6 @@ contract ConvictionBadge is ERC721, Ownable {
         if (existingBadgeId == 0) {
             // Mint new badge
             tokenId = _nextTokenId++;
-            _safeMint(msg.sender, tokenId);
-
             badges[tokenId] = BadgeData({
                 holder: msg.sender,
                 token: token,
@@ -91,6 +89,8 @@ contract ConvictionBadge is ERC721, Ownable {
             });
 
             userTokenBadge[msg.sender][token] = tokenId;
+
+            _safeMint(msg.sender, tokenId);
 
             emit BadgeClaimed(msg.sender, token, tokenId, currentTier);
         } else {
