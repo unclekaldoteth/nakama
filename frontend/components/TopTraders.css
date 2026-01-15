@@ -1,0 +1,214 @@
+.top-traders {
+    margin-bottom: 24px;
+}
+
+.top-traders .traders-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.top-traders .traders-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.top-traders .traders-timeframe {
+    display: flex;
+    gap: 4px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    padding: 4px;
+}
+
+.top-traders .timeframe-btn {
+    padding: 6px 12px;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.top-traders .timeframe-btn.active {
+    background: var(--primary);
+    color: white;
+}
+
+.top-traders .timeframe-btn:hover:not(.active) {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.top-traders .traders-loading,
+.top-traders .traders-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 40px 20px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 16px;
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+.top-traders .traders-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.top-traders .trader-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.top-traders .trader-card:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.top-traders .trader-rank {
+    font-size: 16px;
+    min-width: 28px;
+    text-align: center;
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+
+.top-traders .trader-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.top-traders .trader-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.top-traders .trader-avatar-fallback {
+    font-size: 14px;
+    font-weight: 700;
+    color: #1a1a2e;
+}
+
+.top-traders .trader-info {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+}
+
+.top-traders .trader-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.top-traders .trader-stats {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.top-traders .trader-pnl {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    min-width: 80px;
+}
+
+.top-traders .pnl-value {
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.top-traders .pnl-value.positive {
+    color: #22C55E;
+}
+
+.top-traders .pnl-value.negative {
+    color: #EF4444;
+}
+
+.top-traders .pnl-label {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.top-traders .copy-trade-btn {
+    padding: 8px 14px;
+    background: rgba(255, 215, 0, 0.15);
+    border: 1px solid rgba(255, 215, 0, 0.3);
+    border-radius: 8px;
+    color: #FFD700;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.top-traders .copy-trade-btn:hover {
+    background: rgba(255, 215, 0, 0.25);
+    border-color: rgba(255, 215, 0, 0.5);
+    transform: scale(1.05);
+}
+
+.top-traders .view-leaderboard-btn {
+    display: block;
+    width: 100%;
+    padding: 14px;
+    margin-top: 16px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    color: var(--text-primary);
+    font-size: 14px;
+    font-weight: 600;
+    text-align: center;
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+.top-traders .view-leaderboard-btn:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: var(--primary);
+}
+
+/* Mobile adjustments */
+@media (max-width: 380px) {
+    .top-traders .trader-card {
+        padding: 10px 12px;
+    }
+
+    .top-traders .trader-avatar {
+        width: 36px;
+        height: 36px;
+    }
+
+    .top-traders .copy-trade-btn {
+        padding: 6px 10px;
+        font-size: 11px;
+    }
+}

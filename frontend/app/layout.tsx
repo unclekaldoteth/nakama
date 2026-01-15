@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import "../components/TrendingAssets.css";
+import "../components/TopTraders.css";
 import { MiniAppProvider } from "@/lib/MiniAppProvider";
 import { Web3Provider } from "@/lib/Web3Provider";
 import { FarcasterAutoConnect } from "@/lib/FarcasterAutoConnect";

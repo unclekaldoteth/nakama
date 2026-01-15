@@ -1,22 +1,37 @@
-# Nakama - Conviction Vault Mini App
+# Nakama - Trade & Hold on Base
 
-Nakama is a Farcaster Mini App on the Base ecosystem that allows creators to build loyalty through staking-based conviction. Supporters can stake creator coins to demonstrate their conviction and earn Soulbound NFT badges as proof of their commitment.
+Nakama is a Farcaster Mini App on Base that combines **trading-first** asset discovery with conviction-based staking. Trade any asset on Base, discover trending tokens, follow top traders, and stake creator coins to earn exclusive perks.
 
 ## Overview
 
-The core mechanic involves supporters buying creator coins, staking them to demonstrate conviction, and claiming SBT (Soulbound Token) badges. Creators can offer perks like gated content to their most loyal supporters.
+**Trading-First, Finance-First UX** - Nakama brings together the best of DeFi trading and social conviction mechanics. Browse trending assets, track top traders with copy-trading features, and stake creator coins to unlock gated content and earn Soulbound NFT badges.
 
 ### Features
 
+#### 🔥 Trading & Discovery
+- **Trending Assets**: Real-time trending tokens on Base via DexScreener API
+- **Asset Discovery**: Browse and search memes, DeFi tokens, and creator coins
+- **Top Traders Leaderboard**: Track top performers by PnL (7d/30d/All Time)
+- **Copy Trading Preview**: Follow and copy top traders (coming soon)
+- **Multi-Category Browsing**: Filter by Trending, Top Gainers, Memes, DeFi
+
+#### 🔒 Conviction Vault (Staking)
 - **Universal Staking Vault**: Stake any ERC-20 creator coin with time-locked commitments
 - **Tier-Based Rewards**: Bronze (any stake), Silver (7+ days), Gold (30+ days), Legend (90+ days)
 - **Soulbound Badges**: Non-transferable NFTs with on-chain SVG metadata as proof of conviction
 - **Gated Content**: Creators can restrict content access based on supporter tier
-- **Leaderboards**: Track top supporters by conviction score (sqrt of staked amount)
-- **Ethos Network Integration**: Credibility scores, on-chain reviews, and reputation-weighted supporter metrics
-- **Creator Tier Configuration**: Creators can customize min stake amounts and min ethos scores per tier
-- **Creator Coin Discovery**: Search and select creator coins via Clanker API integration
-- **Premium Dark UI**: Modern glassmorphism design with smooth animations
+- **Conviction Leaderboards**: Track top supporters by conviction score (sqrt of staked amount)
+
+#### 🎨 Creator Tools
+- **Ethos Network Integration**: Credibility scores, on-chain reviews, and reputation-weighted metrics
+- **Creator Tier Configuration**: Customize min stake amounts and min ethos scores per tier
+- **Creator Coin Discovery**: Search and select creator coins via Zora API integration
+- **Supporter Analytics**: View top supporters, tier distribution, and stats
+
+#### 💎 Premium UX
+- **Modern Dark UI**: Glassmorphism design with smooth animations
+- **Mobile-First**: Optimized for Farcaster Mini App experience
+- **Real-Time Data**: Live price feeds and trending metrics
 
 ## Project Structure
 
@@ -237,6 +252,15 @@ npm test
 MIT
 
 ## Recent Updates
+
+### v1.4.0 - Trading-First Hybrid Dashboard
+- **Trading Dashboard**: Transformed home page to hybrid trading + conviction experience
+- **Trending Assets**: Real-time trending tokens on Base via DexScreener API
+- **Asset Discovery**: New `/discover` page with search, categories (Trending, Gainers, Memes, DeFi)
+- **Trading Leaderboard**: New `/leaderboard` page with top traders by PnL (7d/30d/All Time)
+- **Copy Trading Preview**: Copy-trade buttons and feature teaser
+- **Multi-API Integration**: DexScreener for price data, Zora for creator coins
+- **Finance-First UX**: Aligned with Jesse Pollak's Base app direction
 
 ### v1.3.0 - New App Flow & Role-Based Navigation
 - **Onboarding Carousel**: 3-slide introduction for first-time users

@@ -1,0 +1,365 @@
+.leaderboard-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 20px;
+    padding-top: 8px;
+}
+
+.back-button {
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    color: var(--text-secondary);
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.back-button:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+}
+
+.timeframe-tabs {
+    display: flex;
+    gap: 4px;
+    padding: 4px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 12px;
+    margin-bottom: 16px;
+}
+
+.timeframe-tab {
+    flex: 1;
+    padding: 12px 16px;
+    background: transparent;
+    border: none;
+    border-radius: 10px;
+    color: var(--text-secondary);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.timeframe-tab.active {
+    background: var(--primary);
+    color: white;
+}
+
+.timeframe-tab:hover:not(.active) {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.info-banner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    background: rgba(59, 130, 246, 0.1);
+    border: 1px solid rgba(59, 130, 246, 0.2);
+    border-radius: 10px;
+    margin-bottom: 20px;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.info-icon {
+    flex-shrink: 0;
+}
+
+.leaderboard-list {
+    margin-bottom: 24px;
+}
+
+.loading-state,
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 60px 20px;
+    color: var(--text-secondary);
+}
+
+/* Podium for Top 3 */
+.podium {
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    gap: 12px;
+    margin-bottom: 24px;
+    padding: 0 8px;
+}
+
+.podium-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px 16px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    flex: 1;
+    max-width: 120px;
+    transition: all 0.2s ease;
+}
+
+.podium-card.gold {
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.15) 0%, rgba(255, 170, 0, 0.1) 100%);
+    border-color: rgba(255, 215, 0, 0.3);
+    transform: scale(1.08);
+    padding: 24px 16px 20px;
+}
+
+.podium-card.silver {
+    background: linear-gradient(135deg, rgba(192, 192, 192, 0.1) 0%, rgba(160, 160, 160, 0.08) 100%);
+    border-color: rgba(192, 192, 192, 0.25);
+}
+
+.podium-card.bronze {
+    background: linear-gradient(135deg, rgba(205, 127, 50, 0.1) 0%, rgba(180, 100, 30, 0.08) 100%);
+    border-color: rgba(205, 127, 50, 0.25);
+}
+
+.podium-rank {
+    font-size: 28px;
+    margin-bottom: 8px;
+}
+
+.podium-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary) 0%, #8B5CF6 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    margin-bottom: 8px;
+    font-size: 18px;
+    font-weight: 700;
+    color: white;
+}
+
+.podium-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.podium-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-primary);
+    text-align: center;
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+.podium-pnl {
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 4px;
+}
+
+.podium-pnl.positive {
+    color: #22C55E;
+}
+
+.podium-pnl.negative {
+    color: #EF4444;
+}
+
+.podium-stats {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+}
+
+.copy-btn {
+    padding: 8px 14px;
+    background: rgba(255, 215, 0, 0.15);
+    border: 1px solid rgba(255, 215, 0, 0.3);
+    border-radius: 8px;
+    color: #FFD700;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    width: 100%;
+}
+
+.copy-btn:hover {
+    background: rgba(255, 215, 0, 0.25);
+    transform: scale(1.02);
+}
+
+/* Trader Rows */
+.trader-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.trader-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 12px;
+    transition: all 0.2s ease;
+}
+
+.trader-row:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.trader-rank {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-muted);
+    min-width: 30px;
+}
+
+.trader-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    flex-shrink: 0;
+    font-size: 16px;
+    font-weight: 700;
+    color: white;
+}
+
+.trader-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.trader-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.trader-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.trader-meta {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.trader-pnl-section {
+    text-align: right;
+    min-width: 70px;
+}
+
+.trader-pnl {
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.trader-pnl.positive {
+    color: #22C55E;
+}
+
+.trader-pnl.negative {
+    color: #EF4444;
+}
+
+.copy-btn-small {
+    padding: 8px 14px;
+    background: rgba(255, 215, 0, 0.1);
+    border: 1px solid rgba(255, 215, 0, 0.2);
+    border-radius: 8px;
+    color: #FFD700;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.copy-btn-small:hover {
+    background: rgba(255, 215, 0, 0.2);
+    transform: scale(1.05);
+}
+
+/* Copy Info Card */
+.copy-info-card {
+    padding: 24px;
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.08) 0%, rgba(251, 191, 36, 0.05) 100%);
+    border: 1px solid rgba(255, 215, 0, 0.2);
+    border-radius: 16px;
+    margin-bottom: 24px;
+}
+
+.copy-info-card h3 {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 8px 0;
+}
+
+.copy-info-card p {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin: 0 0 16px 0;
+}
+
+.features-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.feature-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    color: var(--text-primary);
+}
+
+.feature-icon {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+}
+
+/* Mobile adjustments */
+@media (max-width: 400px) {
+    .podium {
+        gap: 8px;
+    }
+
+    .podium-card {
+        padding: 16px 12px;
+    }
+
+    .podium-card.gold {
+        transform: scale(1.05);
+    }
+}

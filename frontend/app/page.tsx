@@ -6,6 +6,8 @@ import { useAccount } from 'wagmi';
 import { useMiniApp } from '@/lib/MiniAppProvider';
 import { useOnboarding } from '@/lib/useOnboarding';
 import { getZoraProfileByAddress } from '@/lib/zoraApi';
+import { TrendingAssets } from '@/components/TrendingAssets';
+import { TopTraders } from '@/components/TopTraders';
 import Link from 'next/link';
 
 export default function HomePage() {
@@ -76,71 +78,119 @@ export default function HomePage() {
 
   return (
     <div className="container">
+      {/* Header */}
       <div className="page-header">
-        <h1 className="page-title">Conviction Vault</h1>
+        <div>
+          <h1 className="page-title" style={{ fontSize: '24px', marginBottom: '4px' }}>
+            Trade & Hold
+          </h1>
+          <p style={{ fontSize: '14px', color: 'var(--text-secondary)', margin: 0 }}>
+            The best assets on Base
+          </p>
+        </div>
         {user && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             {user.pfpUrl && (
               <img
                 src={user.pfpUrl}
                 alt={user.displayName || ''}
-                style={{ width: 32, height: 32, borderRadius: '50%' }}
+                style={{ width: 36, height: 36, borderRadius: '50%' }}
               />
             )}
-            <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
-              {user.username
-                ? `@${user.username}`
-                : user.displayName || `FID ${user.fid}`}
-            </span>
           </div>
         )}
       </div>
 
-      {/* Hero Section */}
+      {/* Hero - Hybrid Message */}
       <div className="card" style={{
-        background: 'var(--gradient-primary)',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)',
         border: 'none',
         textAlign: 'center',
-        padding: '32px 20px'
+        padding: '28px 20px',
+        marginBottom: '24px'
       }}>
-        <div style={{ fontSize: '48px', marginBottom: '16px' }}>🔒</div>
+        <div style={{ fontSize: '42px', marginBottom: '12px' }}>💹</div>
         <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '8px' }}>
-          Show Your Conviction
+          Trade Every Asset
         </h2>
-        <p style={{ fontSize: '14px', opacity: 0.9 }}>
-          Stake creator coins to prove your support and unlock exclusive perks
+        <p style={{ fontSize: '14px', opacity: 0.9, marginBottom: '16px' }}>
+          Memes • Creators • Tokens — All in one place
         </p>
+        <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+          <Link
+            href="/discover"
+            style={{
+              padding: '12px 24px',
+              background: 'rgba(255,255,255,0.2)',
+              borderRadius: '12px',
+              color: 'white',
+              fontWeight: '600',
+              fontSize: '14px',
+              textDecoration: 'none',
+              backdropFilter: 'blur(10px)',
+            }}
+          >
+            🔍 Discover
+          </Link>
+          <Link
+            href="/find-creators"
+            style={{
+              padding: '12px 24px',
+              background: 'rgba(255,255,255,0.2)',
+              borderRadius: '12px',
+              color: 'white',
+              fontWeight: '600',
+              fontSize: '14px',
+              textDecoration: 'none',
+              backdropFilter: 'blur(10px)',
+            }}
+          >
+            🎨 Creators
+          </Link>
+        </div>
       </div>
 
-      {/* Quick Actions - Updated for Supporter view */}
+      {/* Trending Assets Section */}
+      <TrendingAssets limit={5} />
+
+      {/* Quick Actions - Hybrid approach */}
       <div className="section">
         <div className="section-header">
           <h3 className="section-title">Quick Actions</h3>
         </div>
 
-        <Link href="/find-creators" className="card" style={{ display: 'block' }}>
-          <div className="card-header">
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+          <Link href="/discover" className="card" style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            padding: '20px 16px',
+            textAlign: 'center',
+          }}>
             <div style={{
               width: 48,
               height: 48,
               borderRadius: '50%',
-              background: 'var(--gradient-primary)',
+              background: 'linear-gradient(135deg, #22C55E 0%, #16A34A 100%)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: '24px'
+              fontSize: '24px',
+              marginBottom: '8px'
             }}>
-              🔍
+              📈
             </div>
-            <div>
-              <div className="card-title">Find Creators</div>
-              <div className="card-subtitle">Search and discover creators to support</div>
-            </div>
-          </div>
-        </Link>
+            <span style={{ fontWeight: '600', fontSize: '14px' }}>Discover</span>
+            <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Browse assets</span>
+          </Link>
 
-        <Link href="/my-convictions" className="card" style={{ display: 'block' }}>
-          <div className="card-header">
+          <Link href="/my-convictions" className="card" style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            padding: '20px 16px',
+            textAlign: 'center',
+          }}>
             <div style={{
               width: 48,
               height: 48,
@@ -149,155 +199,190 @@ export default function HomePage() {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: '24px'
+              fontSize: '24px',
+              marginBottom: '8px'
+            }}>
+              🔒
+            </div>
+            <span style={{ fontWeight: '600', fontSize: '14px' }}>Conviction</span>
+            <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Stake & earn</span>
+          </Link>
+
+          <Link href="/leaderboard" className="card" style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            padding: '20px 16px',
+            textAlign: 'center',
+          }}>
+            <div style={{
+              width: 48,
+              height: 48,
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, #EAB308 0%, #CA8A04 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '24px',
+              marginBottom: '8px'
             }}>
               🏆
             </div>
-            <div>
-              <div className="card-title">My Convictions</div>
-              <div className="card-subtitle">View your staked positions & badges</div>
+            <span style={{ fontWeight: '600', fontSize: '14px' }}>Leaderboard</span>
+            <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Top traders</span>
+          </Link>
+
+          <Link href="/find-creators" className="card" style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            padding: '20px 16px',
+            textAlign: 'center',
+          }}>
+            <div style={{
+              width: 48,
+              height: 48,
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, #9B59B6 0%, #8E44AD 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '24px',
+              marginBottom: '8px'
+            }}>
+              🎨
             </div>
-          </div>
-        </Link>
+            <span style={{ fontWeight: '600', fontSize: '14px' }}>Creators</span>
+            <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Support & stake</span>
+          </Link>
+        </div>
 
         {/* Show Creator Home link for users who selected creator role */}
         {selectedRole === 'creator' && (
-          <Link href="/creator-home" className="card" style={{ display: 'block' }}>
-            <div className="card-header">
-              <div style={{
-                width: 48,
-                height: 48,
-                borderRadius: '50%',
-                background: 'linear-gradient(135deg, #9B59B6 0%, #8E44AD 100%)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '24px'
-              }}>
-                🎨
-              </div>
-              <div>
-                <div className="card-title">Creator Dashboard</div>
-                <div className="card-subtitle">View your supporters & manage tiers</div>
+          <Link href="/creator-home" className="card" style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '16px',
+            marginTop: '12px'
+          }}>
+            <div style={{
+              width: 48,
+              height: 48,
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, #EC4899 0%, #BE185D 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '24px',
+            }}>
+              ✨
+            </div>
+            <div>
+              <div style={{ fontWeight: '600' }}>Creator Dashboard</div>
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                View your supporters & manage tiers
               </div>
             </div>
           </Link>
         )}
       </div>
 
-      {/* How It Works */}
+      {/* Top Traders Section */}
+      <TopTraders limit={3} />
+
+      {/* Conviction Vault CTA */}
       <div className="section">
-        <div className="section-header">
-          <h3 className="section-title">How It Works</h3>
-        </div>
-
-        <div className="card">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-              <div style={{
-                width: 28,
-                height: 28,
-                borderRadius: '50%',
-                background: 'var(--primary)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '14px',
-                fontWeight: '700',
-                flexShrink: 0
-              }}>1</div>
-              <div>
-                <div style={{ fontWeight: '600', marginBottom: '4px' }}>Buy Creator Coin</div>
-                <div style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
-                  Get your favorite creator's token
-                </div>
-              </div>
+        <div className="card" style={{
+          background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(236, 72, 153, 0.15) 100%)',
+          border: '1px solid rgba(139, 92, 246, 0.3)',
+          padding: '24px',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <div style={{ fontSize: '40px' }}>🔒</div>
+            <div style={{ flex: 1 }}>
+              <h3 style={{ fontWeight: '700', marginBottom: '4px' }}>Conviction Vault</h3>
+              <p style={{ fontSize: '14px', color: 'var(--text-secondary)', margin: 0 }}>
+                Stake creator coins. Earn badges. Unlock perks.
+              </p>
             </div>
-
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-              <div style={{
-                width: 28,
-                height: 28,
-                borderRadius: '50%',
-                background: 'var(--primary)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '14px',
-                fontWeight: '700',
-                flexShrink: 0
-              }}>2</div>
-              <div>
-                <div style={{ fontWeight: '600', marginBottom: '4px' }}>Lock to Show Conviction</div>
-                <div style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
-                  Stake tokens for 7-90+ days
-                </div>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-              <div style={{
-                width: 28,
-                height: 28,
-                borderRadius: '50%',
-                background: 'var(--primary)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '14px',
-                fontWeight: '700',
-                flexShrink: 0
-              }}>3</div>
-              <div>
-                <div style={{ fontWeight: '600', marginBottom: '4px' }}>Earn Your Badge</div>
-                <div style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
-                  Claim a soulbound NFT proving your tier
-                </div>
-              </div>
-            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
+            <Link href="/find-creators" style={{
+              flex: 1,
+              padding: '12px',
+              background: 'var(--primary)',
+              borderRadius: '10px',
+              color: 'white',
+              fontWeight: '600',
+              fontSize: '14px',
+              textAlign: 'center',
+              textDecoration: 'none',
+            }}>
+              Start Staking
+            </Link>
+            <Link href="/my-convictions" style={{
+              flex: 1,
+              padding: '12px',
+              background: 'rgba(255,255,255,0.05)',
+              border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: '10px',
+              color: 'var(--text-primary)',
+              fontWeight: '600',
+              fontSize: '14px',
+              textAlign: 'center',
+              textDecoration: 'none',
+            }}>
+              My Stakes
+            </Link>
           </div>
         </div>
       </div>
 
-      {/* Tier Levels */}
+      {/* Tier Levels - Collapsible */}
       <div className="section">
-        <div className="section-header">
-          <h3 className="section-title">Tier Levels</h3>
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <div className="card" style={{ padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <span style={{ fontSize: '24px' }}>🥉</span>
-              <span style={{ fontWeight: '600' }}>Bronze</span>
+        <details className="card" style={{ padding: 0 }}>
+          <summary style={{
+            padding: '16px 20px',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            fontWeight: '600',
+          }}>
+            <span>📊 Conviction Tiers</span>
+            <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>View all</span>
+          </summary>
+          <div style={{ padding: '0 20px 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ padding: '10px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <span>🥉</span>
+                <span style={{ fontWeight: '600' }}>Bronze</span>
+              </div>
+              <span className="tier-badge tier-badge-bronze" style={{ fontSize: '12px' }}>Any stake</span>
             </div>
-            <span className="tier-badge tier-badge-bronze">Any stake</span>
-          </div>
-
-          <div className="card" style={{ padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <span style={{ fontSize: '24px' }}>🥈</span>
-              <span style={{ fontWeight: '600' }}>Silver</span>
+            <div style={{ padding: '10px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <span>🥈</span>
+                <span style={{ fontWeight: '600' }}>Silver</span>
+              </div>
+              <span className="tier-badge tier-badge-silver" style={{ fontSize: '12px' }}>7+ days</span>
             </div>
-            <span className="tier-badge tier-badge-silver">7+ days lock</span>
-          </div>
-
-          <div className="card" style={{ padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <span style={{ fontSize: '24px' }}>🥇</span>
-              <span style={{ fontWeight: '600' }}>Gold</span>
+            <div style={{ padding: '10px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <span>🥇</span>
+                <span style={{ fontWeight: '600' }}>Gold</span>
+              </div>
+              <span className="tier-badge tier-badge-gold" style={{ fontSize: '12px' }}>30+ days</span>
             </div>
-            <span className="tier-badge tier-badge-gold">30+ days lock</span>
-          </div>
-
-          <div className="card" style={{ padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <span style={{ fontSize: '24px' }}>🏆</span>
-              <span style={{ fontWeight: '600' }}>Legend</span>
+            <div style={{ padding: '10px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <span>🏆</span>
+                <span style={{ fontWeight: '600' }}>Legend</span>
+              </div>
+              <span className="tier-badge tier-badge-legend" style={{ fontSize: '12px' }}>90+ days</span>
             </div>
-            <span className="tier-badge tier-badge-legend">90+ days lock</span>
           </div>
-        </div>
+        </details>
       </div>
 
       {/* Footer */}
@@ -307,7 +392,7 @@ export default function HomePage() {
         fontSize: '12px',
         color: 'var(--text-muted)'
       }}>
-        {isInMiniApp ? 'Running in Base App' : 'Standalone Mode'}
+        {isInMiniApp ? 'Running in Base App' : 'Standalone Mode'} • Powered by Base
       </div>
     </div>
   );
