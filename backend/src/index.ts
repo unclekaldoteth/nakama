@@ -7,6 +7,8 @@ import usersRouter from './routes/users';
 import gatedRouter from './routes/gated';
 import ethosRouter from './routes/ethos';
 import tokensRouter from './routes/tokens';
+import onrampRouter from './routes/onramp';
+import baseAccountRouter from './routes/baseAccount';
 import { createIndexer } from './indexer/eventIndexer';
 
 dotenv.config();
@@ -59,6 +61,8 @@ app.use('/api/me', usersRouter);
 app.use('/api/gated', gatedRouter);
 app.use('/api/ethos', ethosRouter);
 app.use('/api/tokens', tokensRouter);
+app.use('/api/onramp', onrampRouter);
+app.use('/api/base-account', baseAccountRouter);
 
 // Error handler
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {

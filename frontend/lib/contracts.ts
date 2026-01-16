@@ -1,5 +1,5 @@
 export const CONTRACTS = {
-    // Base Mainnet deployment - 2026-01-14
+    // Base Mainnet deployment - 2026-01-15
     vault: {
         address: process.env.NEXT_PUBLIC_VAULT_ADDRESS || '0x457b617E9b63cED88d630761e9690e4207F7f798',
         abi: [
@@ -55,7 +55,7 @@ export const CONTRACTS = {
         ] as const,
     },
     badge: {
-        address: process.env.NEXT_PUBLIC_BADGE_ADDRESS || '0x55f56C46B86fE3961cC51b4ca72CCfBFa4F760Ce',
+        address: process.env.NEXT_PUBLIC_BADGE_ADDRESS || '0xb7366b59eb1EDB9Cc776f67dE3711Bf0d74bb84A',
         abi: [
             {
                 "inputs": [{ "name": "token", "type": "address" }],

@@ -49,7 +49,7 @@ Deployed on Base Mainnet:
 | Contract | Address | Description |
 |----------|---------|-------------|
 | ConvictionVault | `0x457b617E9b63cED88d630761e9690e4207F7f798` | Universal staking vault for ERC-20 tokens |
-| ConvictionBadge | `0x55f56C46B86fE3961cC51b4ca72CCfBFa4F760Ce` | Soulbound NFT badges with on-chain SVG |
+| ConvictionBadge | `0xb7366b59eb1EDB9Cc776f67dE3711Bf0d74bb84A` | Soulbound NFT badges with on-chain SVG |
 
 ### Contract Features
 
@@ -287,5 +287,4 @@ MIT
 ## Links
 
 - [BaseScan - ConvictionVault](https://basescan.org/address/0x457b617E9b63cED88d630761e9690e4207F7f798#code)
-- [BaseScan - ConvictionBadge](https://basescan.org/address/0x55f56C46B86fE3961cC51b4ca72CCfBFa4F760Ce#code)
-
+- [BaseScan - ConvictionBadge](https://basescan.org/address/0xb7366b59eb1EDB9Cc776f67dE3711Bf0d74bb84A#code)

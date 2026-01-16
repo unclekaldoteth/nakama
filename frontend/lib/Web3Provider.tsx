@@ -29,6 +29,8 @@ const onchainKitConfig: AppConfig = {
 };
 
 const onchainKitApiKey = process.env.NEXT_PUBLIC_ONCHAINKIT_API_KEY;
+const onchainKitProjectId = process.env.NEXT_PUBLIC_CDP_PROJECT_ID;
+const onchainKitRpcUrl = process.env.NEXT_PUBLIC_ONCHAINKIT_RPC_URL;
 
 const config = createConfig({
     chains: [base, baseSepolia],
@@ -54,6 +56,8 @@ export function Web3Provider({ children }: { children: ReactNode }) {
                     apiKey={onchainKitApiKey}
                     chain={onchainKitChain}
                     config={onchainKitConfig}
+                    projectId={onchainKitProjectId}
+                    rpcUrl={onchainKitRpcUrl}
                 >
                     {children}
                 </OnchainKitProvider>
